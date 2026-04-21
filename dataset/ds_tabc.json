@@ -1,0 +1,16 @@
+{
+	"name": "ds_tabc",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SalesTaxPermit",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "RestResource",
+		"typeProperties": {
+			"relativeUrl": "api/v3/views/7hf9-qc9f/query.json?app_token=vjMadmfQoeuO10rDjM1ADA8AM&$where=date_extract_y(original_issue_date) >= 2025 AND county IN ('Colorado', 'Bastrop', 'Travis', 'Fayette')"
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

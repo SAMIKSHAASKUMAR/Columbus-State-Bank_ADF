@@ -1,0 +1,16 @@
+{
+	"name": "sales_tax_socrata",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SalesTaxPermit",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "RestResource",
+		"typeProperties": {
+			"relativeUrl": "api/v3/views/jrea-zgmq/query.json"
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

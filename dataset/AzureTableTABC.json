@@ -1,0 +1,182 @@
+{
+	"name": "AzureTableTABC",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureSqlDatabase1",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": "id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "version",
+				"type": "nvarchar"
+			},
+			{
+				"name": "created_at",
+				"type": "nvarchar"
+			},
+			{
+				"name": "updated_at",
+				"type": "nvarchar"
+			},
+			{
+				"name": "master_file_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "license_type",
+				"type": "nvarchar"
+			},
+			{
+				"name": "license_id",
+				"type": "nvarchar"
+			},
+			{
+				"name": "primary_status",
+				"type": "nvarchar"
+			},
+			{
+				"name": "license_status",
+				"type": "nvarchar"
+			},
+			{
+				"name": "current_issued_date",
+				"type": "nvarchar"
+			},
+			{
+				"name": "status_change_date",
+				"type": "nvarchar"
+			},
+			{
+				"name": "expiration_date",
+				"type": "nvarchar"
+			},
+			{
+				"name": "expiration_year",
+				"type": "nvarchar"
+			},
+			{
+				"name": "expiration_month",
+				"type": "nvarchar"
+			},
+			{
+				"name": "expiration_day",
+				"type": "nvarchar"
+			},
+			{
+				"name": "trade_name",
+				"type": "nvarchar"
+			},
+			{
+				"name": "owner",
+				"type": "nvarchar"
+			},
+			{
+				"name": "tbd_01",
+				"type": "nvarchar"
+			},
+			{
+				"name": "tbd_02",
+				"type": "nvarchar"
+			},
+			{
+				"name": "tbd_03",
+				"type": "nvarchar"
+			},
+			{
+				"name": "tbd_04",
+				"type": "nvarchar"
+			},
+			{
+				"name": "tbd_05",
+				"type": "nvarchar"
+			},
+			{
+				"name": "gun_sign",
+				"type": "nvarchar"
+			},
+			{
+				"name": "original_issue_date",
+				"type": "nvarchar"
+			},
+			{
+				"name": "tier",
+				"type": "nvarchar"
+			},
+			{
+				"name": "address",
+				"type": "nvarchar"
+			},
+			{
+				"name": "city",
+				"type": "nvarchar"
+			},
+			{
+				"name": "state",
+				"type": "nvarchar"
+			},
+			{
+				"name": "zip",
+				"type": "nvarchar"
+			},
+			{
+				"name": "county",
+				"type": "nvarchar"
+			},
+			{
+				"name": "country",
+				"type": "nvarchar"
+			},
+			{
+				"name": "mail_address",
+				"type": "nvarchar"
+			},
+			{
+				"name": "mail_city",
+				"type": "nvarchar"
+			},
+			{
+				"name": "mail_state",
+				"type": "nvarchar"
+			},
+			{
+				"name": "mail_zip",
+				"type": "nvarchar"
+			},
+			{
+				"name": "mail_country",
+				"type": "nvarchar"
+			},
+			{
+				"name": "legacy_clp",
+				"type": "nvarchar"
+			},
+			{
+				"name": "subordinates",
+				"type": "nvarchar"
+			},
+			{
+				"name": "lh",
+				"type": "nvarchar"
+			},
+			{
+				"name": "lp",
+				"type": "nvarchar"
+			},
+			{
+				"name": "wine_percent",
+				"type": "nvarchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "tabc_permits"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

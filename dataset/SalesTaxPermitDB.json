@@ -1,0 +1,110 @@
+{
+	"name": "SalesTaxPermitDB",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureSqlDatabase1",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [
+			{
+				"name": ":id",
+				"type": "nvarchar"
+			},
+			{
+				"name": ":version",
+				"type": "nvarchar"
+			},
+			{
+				"name": ":created_at",
+				"type": "nvarchar"
+			},
+			{
+				"name": ":updated_at",
+				"type": "nvarchar"
+			},
+			{
+				"name": "taxpayer_number",
+				"type": "nvarchar"
+			},
+			{
+				"name": "taxpayer_name",
+				"type": "nvarchar"
+			},
+			{
+				"name": "taxpayer_address",
+				"type": "nvarchar"
+			},
+			{
+				"name": "taxpayer_city",
+				"type": "nvarchar"
+			},
+			{
+				"name": "taxpayer_state",
+				"type": "nvarchar"
+			},
+			{
+				"name": "taxpayer_zip_code",
+				"type": "nvarchar"
+			},
+			{
+				"name": "taxpayer_county_code",
+				"type": "nvarchar"
+			},
+			{
+				"name": "taxpayer_organization_type",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_number",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_name",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_address",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_city",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_state",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_zip_code",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_county_code",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_naics_code",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_inside_outside_city_limits_indicator",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_permit_issue_date",
+				"type": "nvarchar"
+			},
+			{
+				"name": "outlet_first_sales_date",
+				"type": "nvarchar"
+			}
+		],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "taxpayers_main"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

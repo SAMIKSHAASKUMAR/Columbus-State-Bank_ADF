@@ -1,0 +1,577 @@
+{
+	"name": "p2_austin_tabc",
+	"properties": {
+		"activities": [
+			{
+				"name": "CopyTABCData",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "POST",
+						"requestBody": "{\"query\":\"SELECT * WHERE original_issue_date >= '2025-01-01T00:00:00' AND county IN ('Colorado', 'Bastrop', 'Travis', 'Fayette')\",\"includeSynthetic\":true}",
+						"additionalHeaders": {
+							"X-App-Token": "vjMadmfQoeuO10rDjM1ADA8AM",
+							"Content-Type": "application/json"
+						},
+						"paginationRules": {
+							"supportRFC5988": "true"
+						}
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobStorageWriteSettings",
+							"copyBehavior": "FlattenHierarchy"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_tabc",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Parquet_tabc",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "CopyParquetToSQL",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Transformation_TABC",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ParquetSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": "tabc",
+							"wildcardFileName": "*.parquet",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "ParquetReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBatchSize": 10000,
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": true,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "master_file_id",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "master_file_id",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "license_type",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "license_type",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "license_id",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "license_id",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "primary_status",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "primary_status",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "license_status",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "license_status",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "current_issued_date",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "current_issued_date",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "status_change_date",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "status_change_date",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "expiration_date",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "expiration_date",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "expiration_year",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "expiration_year",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "expiration_month",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "expiration_month",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "expiration_day",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "expiration_day",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "trade_name",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "trade_name",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "owner",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "owner",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "tbd_01",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "tbd_01",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "tbd_02",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "tbd_02",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "tbd_03",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "tbd_03",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "tbd_04",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "tbd_04",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "tbd_05",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "tbd_05",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "gun_sign",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "gun_sign",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "original_issue_date",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "original_issue_date",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "tier",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "tier",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "address",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "address",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "city",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "city",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "state",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "state",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "zip",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "zip",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "county",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "county",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "country",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "country",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "mail_address",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "mail_address",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "mail_city",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "mail_city",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "mail_state",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "mail_state",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "mail_zip",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "mail_zip",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "mail_country",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "mail_country",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "Parquet_tabc",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "AzureTableTABC",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "Script_TABC",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "CopyParquetToSQL",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, license_status, fk_tabc_license_id\n)\nSELECT\n    'TABC', license_id,\n    trade_name, owner, address, city, state, zip, county,\n    current_issued_date, license_status, license_id\nFROM dbo.tabc_permits\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits \n    WHERE source_type = 'TABC' AND business_key = license_id\n);"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Transformation_TABC",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "CopyTABCData",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "-- ─────────────────────────────────────────\n-- STEP 1: Increase Column Sizes\n-- ─────────────────────────────────────────\nALTER TABLE dbo.tabc_permits\nALTER COLUMN county NVARCHAR(255);\n\nALTER TABLE dbo.tabc_permits\nALTER COLUMN license_type NVARCHAR(255);\n\n-- ─────────────────────────────────────────\n-- STEP 2: Standardize Text Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET\n    trade_name    = UPPER(LTRIM(RTRIM(trade_name))),\n    owner         = UPPER(LTRIM(RTRIM(owner))),\n    address       = UPPER(LTRIM(RTRIM(address))),\n    city          = UPPER(LTRIM(RTRIM(city))),\n    state         = UPPER(LTRIM(RTRIM(state))),\n    mail_address  = UPPER(LTRIM(RTRIM(mail_address))),\n    mail_city     = UPPER(LTRIM(RTRIM(mail_city))),\n    mail_state    = UPPER(LTRIM(RTRIM(mail_state)));\n\n-- ─────────────────────────────────────────\n-- STEP 3: Convert Date Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET\n    current_issued_date  = CONVERT(DATE, current_issued_date),\n    status_change_date   = CONVERT(DATE, status_change_date),\n    expiration_date      = CONVERT(DATE, expiration_date),\n    original_issue_date  = CONVERT(DATE, original_issue_date);\n\n-- ─────────────────────────────────────────\n-- STEP 4: Decode County\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET county =\n    CASE LTRIM(RTRIM(county))\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n    END\nWHERE LTRIM(RTRIM(county)) IN ('011', '227', '075', '045');\n\n-- ─────────────────────────────────────────\n-- STEP 5: Decode License Type\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET license_type =\n    CASE LTRIM(RTRIM(license_type))\n        WHEN 'MB'  THEN 'Mixed Beverage Permit'\n        WHEN 'BG'  THEN 'Wine and Malt Beverage Retailers Permit'\n        WHEN 'BE'  THEN 'Beer Retailers On-Premise License'\n        WHEN 'BF'  THEN 'Beer Retailers Off-Premise License'\n        WHEN 'BQ'  THEN 'Wine and Malt Beverage Retailers Off-Premise Permit'\n        WHEN 'P'   THEN 'Package Store Permit'\n        WHEN 'Q'   THEN 'Wine-Only Package Store Permit'\n        WHEN 'N'   THEN 'Private Club Registration Permit'\n        WHEN 'NB'  THEN 'Private Club Malt Beverage and Wine Permit'\n        WHEN 'NE'  THEN 'Private Club Exemption Permit'\n        WHEN 'D'   THEN 'Distillers and Rectifiers Permit'\n        WHEN 'G'   THEN 'Winery Permit'\n        WHEN 'BB'  THEN 'General Distributors License'\n        WHEN 'BC'  THEN 'Branch Distributors License'\n        WHEN 'BW'  THEN 'Brewers License'\n        WHEN 'BP'  THEN 'Brewpub License'\n        WHEN 'W'   THEN 'Wholesalers Permit'\n        WHEN 'X'   THEN 'General Class B Wholesalers Permit'\n        WHEN 'S'   THEN 'Nonresident Sellers Permit'\n        WHEN 'DS'  THEN 'Out-of-State Winery Direct Shippers Permit'\n        WHEN 'BN'  THEN 'Nonresident Brewers License'\n        WHEN 'CD'  THEN 'Consumer Delivery Permit'\n        WHEN 'TR'  THEN 'Passenger Transportation Permit'\n        WHEN 'FB'  THEN 'Food and Beverage Certificate'\n        WHEN 'LB'  THEN 'Late Hours Certificate'\n        ELSE 'Unknown License Type'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 6: Standardize Zip Codes\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(zip)))) \n          + LTRIM(RTRIM(zip)), 5)\nWHERE zip IS NOT NULL;\n\nUPDATE dbo.tabc_permits\nSET mail_zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(mail_zip)))) \n               + LTRIM(RTRIM(mail_zip)), 5)\nWHERE mail_zip IS NOT NULL;\n\n-- ─────────────────────────────────────────\n-- STEP 7: Remove Duplicates\n-- ─────────────────────────────────────────\nWITH CTE AS (\n    SELECT *,\n        ROW_NUMBER() OVER (\n            PARTITION BY license_id\n            ORDER BY current_issued_date DESC\n        ) AS row_num\n    FROM dbo.tabc_permits\n)\nDELETE FROM CTE WHERE row_num > 1;"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-04-19T21:58:38Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

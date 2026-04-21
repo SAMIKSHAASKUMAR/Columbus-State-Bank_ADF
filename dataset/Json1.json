@@ -1,0 +1,92 @@
+{
+	"name": "Json1",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "HttpServer1",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "HttpServerLocation",
+				"relativeUrl": "api/v3/views/jrea-zgmq/query.json?pageNumber=1&pageSize=10&app_token=vjMadmfQoeuO10rDjM1ADA8AM"
+			}
+		},
+		"schema": {
+			"type": "object",
+			"properties": {
+				":id": {
+					"type": "string"
+				},
+				":version": {
+					"type": "string"
+				},
+				":created_at": {
+					"type": "string"
+				},
+				":updated_at": {
+					"type": "string"
+				},
+				"taxpayer_number": {
+					"type": "string"
+				},
+				"taxpayer_name": {
+					"type": "string"
+				},
+				"taxpayer_address": {
+					"type": "string"
+				},
+				"taxpayer_city": {
+					"type": "string"
+				},
+				"taxpayer_state": {
+					"type": "string"
+				},
+				"taxpayer_zip_code": {
+					"type": "string"
+				},
+				"taxpayer_county_code": {
+					"type": "string"
+				},
+				"taxpayer_organization_type": {
+					"type": "string"
+				},
+				"outlet_number": {
+					"type": "string"
+				},
+				"outlet_name": {
+					"type": "string"
+				},
+				"outlet_address": {
+					"type": "string"
+				},
+				"outlet_city": {
+					"type": "string"
+				},
+				"outlet_state": {
+					"type": "string"
+				},
+				"outlet_zip_code": {
+					"type": "string"
+				},
+				"outlet_county_code": {
+					"type": "string"
+				},
+				"outlet_naics_code": {
+					"type": "string"
+				},
+				"outlet_inside_outside_city_limits_indicator": {
+					"type": "string"
+				},
+				"outlet_permit_issue_date": {
+					"type": "string"
+				},
+				"outlet_first_sales_date": {
+					"type": "string"
+				}
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

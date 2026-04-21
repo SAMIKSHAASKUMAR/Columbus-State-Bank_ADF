@@ -1,0 +1,421 @@
+{
+	"name": "p1_austin_salestax",
+	"properties": {
+		"activities": [
+			{
+				"name": "CopySocrataData",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "POST",
+						"requestBody": "{\n    \"query\": \"SELECT * WHERE outlet_permit_issue_date >= '2025-01-01T00:00:00' AND (outlet_county_code = '011' OR outlet_county_code = '045' OR outlet_county_code = '075' OR outlet_county_code = '227')\",\n    \"includeSynthetic\": true\n}",
+						"additionalHeaders": {
+							"X-App-Token": "vjMadmfQoeuO10rDjM1ADA8AM",
+							"Content-Type": "application/json"
+						},
+						"paginationRules": {
+							"supportRFC5988": "true"
+						}
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobStorageWriteSettings",
+							"copyBehavior": "FlattenHierarchy"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "sales_tax_socrata",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Parquet1",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "CopyParquetToSQL",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Transformation_script_salestax",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ParquetSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": "socrata",
+							"wildcardFileName": "*.parquet",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "ParquetReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBatchSize": 10000,
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": true,
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"mappings": [
+							{
+								"source": {
+									"name": "taxpayer_number",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "taxpayer_number",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "taxpayer_name",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "taxpayer_name",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "taxpayer_address",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "taxpayer_address",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "taxpayer_city",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "taxpayer_city",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "taxpayer_state",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "taxpayer_state",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "taxpayer_zip_code",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "taxpayer_zip_code",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "taxpayer_county_code",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "taxpayer_county_code",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "taxpayer_organization_type",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "taxpayer_organization_type",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_number",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_number",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_name",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_name",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_address",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_address",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_city",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_city",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_state",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_state",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_zip_code",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_zip_code",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_county_code",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_county_code",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_naics_code",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_naics_code",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_inside_outside_city_limits_indicator",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_inside_outside_city_limits_indicator",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_permit_issue_date",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_permit_issue_date",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							},
+							{
+								"source": {
+									"name": "outlet_first_sales_date",
+									"type": "String",
+									"physicalType": "UTF8"
+								},
+								"sink": {
+									"name": "outlet_first_sales_date",
+									"type": "String",
+									"physicalType": "nvarchar"
+								}
+							}
+						],
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "Parquet1",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "SalesTaxPermitDB",
+						"type": "DatasetReference"
+					}
+				]
+			},
+			{
+				"name": "Script_SalesTax",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "CopyParquetToSQL",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, fk_taxpayer_number\n)\nSELECT\n    'SALESTAX', CONCAT(taxpayer_number, '-', outlet_number),\n    outlet_name, taxpayer_name, outlet_address, outlet_city, outlet_state, outlet_zip_code, outlet_county_code,\n    outlet_permit_issue_date, taxpayer_number\nFROM dbo.taxpayers_main\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits \n    WHERE source_type = 'SALESTAX' \n    AND business_key = CONCAT(taxpayer_number, '-', outlet_number)\n);"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Transformation_script_salestax",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "CopySocrataData",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "-- ─────────────────────────────────────────\n-- STEP 1: Standardize Text Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET\n    taxpayer_name    = UPPER(LTRIM(RTRIM(taxpayer_name))),\n    taxpayer_address = UPPER(LTRIM(RTRIM(REPLACE(taxpayer_address, '%', 'C/O')))),\n    taxpayer_city    = UPPER(LTRIM(RTRIM(taxpayer_city))),\n    outlet_name      = UPPER(LTRIM(RTRIM(outlet_name))),\n    outlet_address   = UPPER(LTRIM(RTRIM(REPLACE(outlet_address, '%', 'C/O')))),\n    outlet_city      = UPPER(LTRIM(RTRIM(outlet_city)));\n\n-- ─────────────────────────────────────────\n-- STEP 2: Convert Date Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET\n    outlet_permit_issue_date = CONVERT(DATE, outlet_permit_issue_date),\n    outlet_first_sales_date  = CONVERT(DATE, outlet_first_sales_date);\n\n-- ─────────────────────────────────────────\n-- STEP 4: Decode Outlet County Code\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET outlet_county_code =\n    CASE outlet_county_code\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n        ELSE 'Other County'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 5: Decode Organization Type\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET taxpayer_organization_type =\n    CASE taxpayer_organization_type\n        WHEN 'CT' THEN 'Texas Domestic Profit Corporation'\n        WHEN 'CL' THEN 'Texas Limited Liability Company'\n        WHEN 'CN' THEN 'Texas Domestic Nonprofit Corporation'\n        WHEN 'CF' THEN 'Foreign Out-of-State Profit Corporation'\n        WHEN 'CI' THEN 'Foreign Limited Liability Company'\n        WHEN 'CM' THEN 'Foreign Out-of-State Nonprofit Corporation'\n        WHEN 'CP' THEN 'Professional Corporation'\n        WHEN 'CU' THEN 'Foreign Professional Corporation'\n        WHEN 'PI' THEN 'Individual General Partnership'\n        WHEN 'PB' THEN 'Business General Partnership'\n        WHEN 'PL' THEN 'Texas Limited Partnership'\n        WHEN 'PF' THEN 'Foreign Limited Partnership'\n        WHEN 'PV' THEN 'Texas Joint Venture'\n        WHEN 'PW' THEN 'Foreign Joint Venture'\n        WHEN 'AP' THEN 'Professional Association'\n        WHEN 'AB' THEN 'Texas Business Association'\n        WHEN 'AC' THEN 'Foreign Business Association'\n        WHEN 'GC' THEN 'Government - City'\n        WHEN 'GO' THEN 'Government - County'\n        WHEN 'GS' THEN 'Government - School District'\n        WHEN 'GT' THEN 'Government - Texas State Agency'\n        WHEN 'GU' THEN 'Government - State University'\n        WHEN 'IS' THEN 'Individual Sole Owner'\n        WHEN 'ES' THEN 'Estate'\n        WHEN 'TR' THEN 'Trust'\n        WHEN 'UK' THEN 'Unknown'\n        ELSE 'Unknown Organization Type'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 6: Decode NAICS Code\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET outlet_naics_code =\n    CASE outlet_naics_code\n        WHEN '441110' THEN 'New Car Dealers'\n        WHEN '441120' THEN 'Used Car Dealers'\n        WHEN '441300' THEN 'Automotive Parts & Accessories'\n        WHEN '442110' THEN 'Furniture Stores'\n        WHEN '443142' THEN 'Electronics Stores'\n        WHEN '444110' THEN 'Home Centers'\n        WHEN '444130' THEN 'Hardware Stores'\n        WHEN '445110' THEN 'Supermarkets & Grocery Stores'\n        WHEN '445120' THEN 'Convenience Stores'\n        WHEN '445310' THEN 'Beer, Wine & Liquor Stores'\n        WHEN '446110' THEN 'Pharmacies & Drug Stores'\n        WHEN '447110' THEN 'Gasoline Stations with Convenience Stores'\n        WHEN '447190' THEN 'Other Gasoline Stations'\n        WHEN '448110' THEN 'Mens Clothing Stores'\n        WHEN '448120' THEN 'Womens Clothing Stores'\n        WHEN '448140' THEN 'Family Clothing Stores'\n        WHEN '451110' THEN 'Sporting Goods Stores'\n        WHEN '451211' THEN 'Book Stores'\n        WHEN '452210' THEN 'Department Stores'\n        WHEN '453110' THEN 'Florists'\n        WHEN '453220' THEN 'Gift Novelty & Souvenir Stores'\n        WHEN '453310' THEN 'Used Merchandise Stores'\n        WHEN '453998' THEN 'Miscellaneous Retail Stores'\n        WHEN '522298' THEN 'Pawn Shops & Other Consumer Lending'\n        WHEN '722110' THEN 'Full-Service Restaurants'\n        WHEN '722210' THEN 'Limited-Service Eating Places'\n        WHEN '722410' THEN 'Drinking Places - Alcoholic Beverages'\n        WHEN '722511' THEN 'Full-Service Restaurants'\n        WHEN '722513' THEN 'Limited-Service Restaurants'\n        WHEN '722515' THEN 'Snack & Nonalcoholic Beverage Bars'\n        WHEN '236115' THEN 'New Single-Family Home Construction'\n        WHEN '236118' THEN 'Residential Remodelers'\n        WHEN '236220' THEN 'Commercial & Institutional Building Construction'\n        WHEN '238110' THEN 'Poured Concrete Foundation Contractors'\n        WHEN '238210' THEN 'Electrical Contractors'\n        WHEN '238220' THEN 'Plumbing Heating & Air-Conditioning'\n        WHEN '238320' THEN 'Painting & Wall Covering Contractors'\n        WHEN '238330' THEN 'Flooring Contractors'\n        WHEN '424720' THEN 'Petroleum & Petroleum Products Wholesalers'\n        WHEN '424810' THEN 'Beer & Ale Merchant Wholesalers'\n        WHEN '531110' THEN 'Lessors of Residential Buildings'\n        WHEN '531120' THEN 'Lessors of Nonresidential Buildings'\n        WHEN '541511' THEN 'Custom Computer Programming Services'\n        WHEN '541512' THEN 'Computer Systems Design Services'\n        WHEN '561720' THEN 'Janitorial Services'\n        WHEN '561730' THEN 'Landscaping Services'\n        WHEN '611110' THEN 'Elementary & Secondary Schools'\n        WHEN '621111' THEN 'Offices of Physicians'\n        WHEN '621210' THEN 'Offices of Dentists'\n        WHEN '622110' THEN 'General Medical & Surgical Hospitals'\n        WHEN '711219' THEN 'Other Spectator Sports'\n        WHEN '721110' THEN 'Hotels & Motels'\n        WHEN '811111' THEN 'General Automotive Repair'\n        WHEN '811192' THEN 'Car Washes'\n        WHEN '812111' THEN 'Barber Shops'\n        WHEN '812112' THEN 'Beauty Salons'\n        WHEN '812113' THEN 'Nail Salons'\n        WHEN '812990' THEN 'Other Personal Services'\n        WHEN '813110' THEN 'Religious Organizations'\n        WHEN '813410' THEN 'Civic & Social Organizations'\n        ELSE 'Other Business Activity'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 7: Filter Org Types Starting with B\n-- ─────────────────────────────────────────\nDELETE FROM dbo.taxpayers_main\nWHERE taxpayer_organization_type LIKE 'B%';\n\n-- ─────────────────────────────────────────\n-- STEP 8: Filter Outlet Number >= 20\n-- ─────────────────────────────────────────\nDELETE FROM dbo.taxpayers_main\nWHERE TRY_CAST(outlet_number AS INT) >= 20;\n\n-- ─────────────────────────────────────────\n-- STEP 9: Remove Duplicates\n-- ─────────────────────────────────────────\nWITH CTE AS (\n    SELECT *,\n        ROW_NUMBER() OVER (\n            PARTITION BY taxpayer_number, outlet_number\n            ORDER BY outlet_permit_issue_date DESC\n        ) AS row_num\n    FROM dbo.taxpayers_main\n)\nDELETE FROM CTE WHERE row_num > 1;"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-04-19T21:58:38Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
