@@ -1,0 +1,1795 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "adf-austin-pipeline-dev"
+		},
+		"AzureSqlDatabase1_password": {
+			"type": "secureString",
+			"metadata": "Secure string for 'password' of 'AzureSqlDatabase1'"
+		},
+		"ls_blob_storage_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'ls_blob_storage'"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "austin-sql-server-dev.database.windows.net"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "austin-pipeline-db"
+		},
+		"AzureSqlDatabase1_properties_typeProperties_userName": {
+			"type": "string",
+			"defaultValue": "sqladmin"
+		},
+		"HttpServer1_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://data.texas.gov"
+		},
+		"SalesTaxPermit_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://data.texas.gov/"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlDatabase1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('AzureSqlDatabase1_properties_typeProperties_server')]",
+					"database": "[parameters('AzureSqlDatabase1_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SQL",
+					"userName": "[parameters('AzureSqlDatabase1_properties_typeProperties_userName')]",
+					"password": {
+						"type": "SecureString",
+						"value": "[parameters('AzureSqlDatabase1_password')]"
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/HttpServer1')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "HttpServer",
+				"typeProperties": {
+					"url": "[parameters('HttpServer1_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SalesTaxPermit')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "RestService",
+				"typeProperties": {
+					"url": "[parameters('SalesTaxPermit_properties_typeProperties_url')]",
+					"enableServerCertificateValidation": true,
+					"authenticationType": "Anonymous"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_blob_storage')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobStorage",
+				"typeProperties": {
+					"connectionString": "[parameters('ls_blob_storage_connectionString')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureSqlTable1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "id",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "taxpayers_main"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/AzureTableTABC')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": "id",
+						"type": "nvarchar"
+					},
+					{
+						"name": "version",
+						"type": "nvarchar"
+					},
+					{
+						"name": "created_at",
+						"type": "nvarchar"
+					},
+					{
+						"name": "updated_at",
+						"type": "nvarchar"
+					},
+					{
+						"name": "master_file_id",
+						"type": "nvarchar"
+					},
+					{
+						"name": "license_type",
+						"type": "nvarchar"
+					},
+					{
+						"name": "license_id",
+						"type": "nvarchar"
+					},
+					{
+						"name": "primary_status",
+						"type": "nvarchar"
+					},
+					{
+						"name": "license_status",
+						"type": "nvarchar"
+					},
+					{
+						"name": "current_issued_date",
+						"type": "nvarchar"
+					},
+					{
+						"name": "status_change_date",
+						"type": "nvarchar"
+					},
+					{
+						"name": "expiration_date",
+						"type": "nvarchar"
+					},
+					{
+						"name": "expiration_year",
+						"type": "nvarchar"
+					},
+					{
+						"name": "expiration_month",
+						"type": "nvarchar"
+					},
+					{
+						"name": "expiration_day",
+						"type": "nvarchar"
+					},
+					{
+						"name": "trade_name",
+						"type": "nvarchar"
+					},
+					{
+						"name": "owner",
+						"type": "nvarchar"
+					},
+					{
+						"name": "tbd_01",
+						"type": "nvarchar"
+					},
+					{
+						"name": "tbd_02",
+						"type": "nvarchar"
+					},
+					{
+						"name": "tbd_03",
+						"type": "nvarchar"
+					},
+					{
+						"name": "tbd_04",
+						"type": "nvarchar"
+					},
+					{
+						"name": "tbd_05",
+						"type": "nvarchar"
+					},
+					{
+						"name": "gun_sign",
+						"type": "nvarchar"
+					},
+					{
+						"name": "original_issue_date",
+						"type": "nvarchar"
+					},
+					{
+						"name": "tier",
+						"type": "nvarchar"
+					},
+					{
+						"name": "address",
+						"type": "nvarchar"
+					},
+					{
+						"name": "city",
+						"type": "nvarchar"
+					},
+					{
+						"name": "state",
+						"type": "nvarchar"
+					},
+					{
+						"name": "zip",
+						"type": "nvarchar"
+					},
+					{
+						"name": "county",
+						"type": "nvarchar"
+					},
+					{
+						"name": "country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "mail_address",
+						"type": "nvarchar"
+					},
+					{
+						"name": "mail_city",
+						"type": "nvarchar"
+					},
+					{
+						"name": "mail_state",
+						"type": "nvarchar"
+					},
+					{
+						"name": "mail_zip",
+						"type": "nvarchar"
+					},
+					{
+						"name": "mail_country",
+						"type": "nvarchar"
+					},
+					{
+						"name": "legacy_clp",
+						"type": "nvarchar"
+					},
+					{
+						"name": "subordinates",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lh",
+						"type": "nvarchar"
+					},
+					{
+						"name": "lp",
+						"type": "nvarchar"
+					},
+					{
+						"name": "wine_percent",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "tabc_permits"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Json1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "HttpServer1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "HttpServerLocation",
+						"relativeUrl": "api/v3/views/jrea-zgmq/query.json?pageNumber=1&pageSize=10&app_token=vjMadmfQoeuO10rDjM1ADA8AM"
+					}
+				},
+				"schema": {
+					"type": "object",
+					"properties": {
+						":id": {
+							"type": "string"
+						},
+						":version": {
+							"type": "string"
+						},
+						":created_at": {
+							"type": "string"
+						},
+						":updated_at": {
+							"type": "string"
+						},
+						"taxpayer_number": {
+							"type": "string"
+						},
+						"taxpayer_name": {
+							"type": "string"
+						},
+						"taxpayer_address": {
+							"type": "string"
+						},
+						"taxpayer_city": {
+							"type": "string"
+						},
+						"taxpayer_state": {
+							"type": "string"
+						},
+						"taxpayer_zip_code": {
+							"type": "string"
+						},
+						"taxpayer_county_code": {
+							"type": "string"
+						},
+						"taxpayer_organization_type": {
+							"type": "string"
+						},
+						"outlet_number": {
+							"type": "string"
+						},
+						"outlet_name": {
+							"type": "string"
+						},
+						"outlet_address": {
+							"type": "string"
+						},
+						"outlet_city": {
+							"type": "string"
+						},
+						"outlet_state": {
+							"type": "string"
+						},
+						"outlet_zip_code": {
+							"type": "string"
+						},
+						"outlet_county_code": {
+							"type": "string"
+						},
+						"outlet_naics_code": {
+							"type": "string"
+						},
+						"outlet_inside_outside_city_limits_indicator": {
+							"type": "string"
+						},
+						"outlet_permit_issue_date": {
+							"type": "string"
+						},
+						"outlet_first_sales_date": {
+							"type": "string"
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/HttpServer1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Parquet1')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_blob_storage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "socrata",
+						"container": "staging"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_storage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Parquet_tabc')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_blob_storage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "tabc",
+						"container": "staging"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_storage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/SalesTaxPermitDB')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "AzureSqlTable",
+				"schema": [
+					{
+						"name": ":id",
+						"type": "nvarchar"
+					},
+					{
+						"name": ":version",
+						"type": "nvarchar"
+					},
+					{
+						"name": ":created_at",
+						"type": "nvarchar"
+					},
+					{
+						"name": ":updated_at",
+						"type": "nvarchar"
+					},
+					{
+						"name": "taxpayer_number",
+						"type": "nvarchar"
+					},
+					{
+						"name": "taxpayer_name",
+						"type": "nvarchar"
+					},
+					{
+						"name": "taxpayer_address",
+						"type": "nvarchar"
+					},
+					{
+						"name": "taxpayer_city",
+						"type": "nvarchar"
+					},
+					{
+						"name": "taxpayer_state",
+						"type": "nvarchar"
+					},
+					{
+						"name": "taxpayer_zip_code",
+						"type": "nvarchar"
+					},
+					{
+						"name": "taxpayer_county_code",
+						"type": "nvarchar"
+					},
+					{
+						"name": "taxpayer_organization_type",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_number",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_name",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_address",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_city",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_state",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_zip_code",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_county_code",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_naics_code",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_inside_outside_city_limits_indicator",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_permit_issue_date",
+						"type": "nvarchar"
+					},
+					{
+						"name": "outlet_first_sales_date",
+						"type": "nvarchar"
+					}
+				],
+				"typeProperties": {
+					"schema": "dbo",
+					"table": "taxpayers_main"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_blob_staging')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_blob_storage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Json",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "socrata",
+						"container": "adfstaging"
+					}
+				},
+				"schema": {}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_storage')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ds_tabc')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "SalesTaxPermit",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": "api/v3/views/7hf9-qc9f/query.json?app_token=vjMadmfQoeuO10rDjM1ADA8AM&$where=date_extract_y(original_issue_date) >= 2025 AND county IN ('Colorado', 'Bastrop', 'Travis', 'Fayette')"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/SalesTaxPermit')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/sales_tax_socrata')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "SalesTaxPermit",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "RestResource",
+				"typeProperties": {
+					"relativeUrl": "api/v3/views/jrea-zgmq/query.json"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/SalesTaxPermit')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/p1_austin_salestax')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopySocrataData",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "POST",
+								"requestBody": "{\n    \"query\": \"SELECT * WHERE outlet_permit_issue_date >= '2025-01-01T00:00:00' AND (outlet_county_code = '011' OR outlet_county_code = '045' OR outlet_county_code = '075' OR outlet_county_code = '227')\",\n    \"includeSynthetic\": true\n}",
+								"additionalHeaders": {
+									"X-App-Token": "vjMadmfQoeuO10rDjM1ADA8AM",
+									"Content-Type": "application/json"
+								},
+								"paginationRules": {
+									"supportRFC5988": "true"
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings",
+									"copyBehavior": "FlattenHierarchy"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "sales_tax_socrata",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "Parquet1",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "CopyParquetToSQL",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Transformation_script_salestax",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "ParquetSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "socrata",
+									"wildcardFileName": "*.parquet",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "ParquetReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBatchSize": 10000,
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": true,
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "taxpayer_number",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "taxpayer_number",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "taxpayer_name",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "taxpayer_name",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "taxpayer_address",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "taxpayer_address",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "taxpayer_city",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "taxpayer_city",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "taxpayer_state",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "taxpayer_state",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "taxpayer_zip_code",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "taxpayer_zip_code",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "taxpayer_county_code",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "taxpayer_county_code",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "taxpayer_organization_type",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "taxpayer_organization_type",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_number",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_number",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_name",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_name",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_address",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_address",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_city",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_city",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_state",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_state",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_zip_code",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_zip_code",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_county_code",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_county_code",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_naics_code",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_naics_code",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_inside_outside_city_limits_indicator",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_inside_outside_city_limits_indicator",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_permit_issue_date",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_permit_issue_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "outlet_first_sales_date",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "outlet_first_sales_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "Parquet1",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "SalesTaxPermitDB",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "Script_SalesTax",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "CopyParquetToSQL",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, fk_taxpayer_number\n)\nSELECT\n    'SALESTAX', CONCAT(taxpayer_number, '-', outlet_number),\n    outlet_name, taxpayer_name, outlet_address, outlet_city, outlet_state, outlet_zip_code, outlet_county_code,\n    outlet_permit_issue_date, taxpayer_number\nFROM dbo.taxpayers_main\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits \n    WHERE source_type = 'SALESTAX' \n    AND business_key = CONCAT(taxpayer_number, '-', outlet_number)\n);"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "Transformation_script_salestax",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "CopySocrataData",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "-- ─────────────────────────────────────────\n-- STEP 1: Standardize Text Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET\n    taxpayer_name    = UPPER(LTRIM(RTRIM(taxpayer_name))),\n    taxpayer_address = UPPER(LTRIM(RTRIM(REPLACE(taxpayer_address, '%', 'C/O')))),\n    taxpayer_city    = UPPER(LTRIM(RTRIM(taxpayer_city))),\n    outlet_name      = UPPER(LTRIM(RTRIM(outlet_name))),\n    outlet_address   = UPPER(LTRIM(RTRIM(REPLACE(outlet_address, '%', 'C/O')))),\n    outlet_city      = UPPER(LTRIM(RTRIM(outlet_city)));\n\n-- ─────────────────────────────────────────\n-- STEP 2: Convert Date Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET\n    outlet_permit_issue_date = CONVERT(DATE, outlet_permit_issue_date),\n    outlet_first_sales_date  = CONVERT(DATE, outlet_first_sales_date);\n\n-- ─────────────────────────────────────────\n-- STEP 4: Decode Outlet County Code\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET outlet_county_code =\n    CASE outlet_county_code\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n        ELSE 'Other County'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 5: Decode Organization Type\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET taxpayer_organization_type =\n    CASE taxpayer_organization_type\n        WHEN 'CT' THEN 'Texas Domestic Profit Corporation'\n        WHEN 'CL' THEN 'Texas Limited Liability Company'\n        WHEN 'CN' THEN 'Texas Domestic Nonprofit Corporation'\n        WHEN 'CF' THEN 'Foreign Out-of-State Profit Corporation'\n        WHEN 'CI' THEN 'Foreign Limited Liability Company'\n        WHEN 'CM' THEN 'Foreign Out-of-State Nonprofit Corporation'\n        WHEN 'CP' THEN 'Professional Corporation'\n        WHEN 'CU' THEN 'Foreign Professional Corporation'\n        WHEN 'PI' THEN 'Individual General Partnership'\n        WHEN 'PB' THEN 'Business General Partnership'\n        WHEN 'PL' THEN 'Texas Limited Partnership'\n        WHEN 'PF' THEN 'Foreign Limited Partnership'\n        WHEN 'PV' THEN 'Texas Joint Venture'\n        WHEN 'PW' THEN 'Foreign Joint Venture'\n        WHEN 'AP' THEN 'Professional Association'\n        WHEN 'AB' THEN 'Texas Business Association'\n        WHEN 'AC' THEN 'Foreign Business Association'\n        WHEN 'GC' THEN 'Government - City'\n        WHEN 'GO' THEN 'Government - County'\n        WHEN 'GS' THEN 'Government - School District'\n        WHEN 'GT' THEN 'Government - Texas State Agency'\n        WHEN 'GU' THEN 'Government - State University'\n        WHEN 'IS' THEN 'Individual Sole Owner'\n        WHEN 'ES' THEN 'Estate'\n        WHEN 'TR' THEN 'Trust'\n        WHEN 'UK' THEN 'Unknown'\n        ELSE 'Unknown Organization Type'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 6: Decode NAICS Code\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET outlet_naics_code =\n    CASE outlet_naics_code\n        WHEN '441110' THEN 'New Car Dealers'\n        WHEN '441120' THEN 'Used Car Dealers'\n        WHEN '441300' THEN 'Automotive Parts & Accessories'\n        WHEN '442110' THEN 'Furniture Stores'\n        WHEN '443142' THEN 'Electronics Stores'\n        WHEN '444110' THEN 'Home Centers'\n        WHEN '444130' THEN 'Hardware Stores'\n        WHEN '445110' THEN 'Supermarkets & Grocery Stores'\n        WHEN '445120' THEN 'Convenience Stores'\n        WHEN '445310' THEN 'Beer, Wine & Liquor Stores'\n        WHEN '446110' THEN 'Pharmacies & Drug Stores'\n        WHEN '447110' THEN 'Gasoline Stations with Convenience Stores'\n        WHEN '447190' THEN 'Other Gasoline Stations'\n        WHEN '448110' THEN 'Mens Clothing Stores'\n        WHEN '448120' THEN 'Womens Clothing Stores'\n        WHEN '448140' THEN 'Family Clothing Stores'\n        WHEN '451110' THEN 'Sporting Goods Stores'\n        WHEN '451211' THEN 'Book Stores'\n        WHEN '452210' THEN 'Department Stores'\n        WHEN '453110' THEN 'Florists'\n        WHEN '453220' THEN 'Gift Novelty & Souvenir Stores'\n        WHEN '453310' THEN 'Used Merchandise Stores'\n        WHEN '453998' THEN 'Miscellaneous Retail Stores'\n        WHEN '522298' THEN 'Pawn Shops & Other Consumer Lending'\n        WHEN '722110' THEN 'Full-Service Restaurants'\n        WHEN '722210' THEN 'Limited-Service Eating Places'\n        WHEN '722410' THEN 'Drinking Places - Alcoholic Beverages'\n        WHEN '722511' THEN 'Full-Service Restaurants'\n        WHEN '722513' THEN 'Limited-Service Restaurants'\n        WHEN '722515' THEN 'Snack & Nonalcoholic Beverage Bars'\n        WHEN '236115' THEN 'New Single-Family Home Construction'\n        WHEN '236118' THEN 'Residential Remodelers'\n        WHEN '236220' THEN 'Commercial & Institutional Building Construction'\n        WHEN '238110' THEN 'Poured Concrete Foundation Contractors'\n        WHEN '238210' THEN 'Electrical Contractors'\n        WHEN '238220' THEN 'Plumbing Heating & Air-Conditioning'\n        WHEN '238320' THEN 'Painting & Wall Covering Contractors'\n        WHEN '238330' THEN 'Flooring Contractors'\n        WHEN '424720' THEN 'Petroleum & Petroleum Products Wholesalers'\n        WHEN '424810' THEN 'Beer & Ale Merchant Wholesalers'\n        WHEN '531110' THEN 'Lessors of Residential Buildings'\n        WHEN '531120' THEN 'Lessors of Nonresidential Buildings'\n        WHEN '541511' THEN 'Custom Computer Programming Services'\n        WHEN '541512' THEN 'Computer Systems Design Services'\n        WHEN '561720' THEN 'Janitorial Services'\n        WHEN '561730' THEN 'Landscaping Services'\n        WHEN '611110' THEN 'Elementary & Secondary Schools'\n        WHEN '621111' THEN 'Offices of Physicians'\n        WHEN '621210' THEN 'Offices of Dentists'\n        WHEN '622110' THEN 'General Medical & Surgical Hospitals'\n        WHEN '711219' THEN 'Other Spectator Sports'\n        WHEN '721110' THEN 'Hotels & Motels'\n        WHEN '811111' THEN 'General Automotive Repair'\n        WHEN '811192' THEN 'Car Washes'\n        WHEN '812111' THEN 'Barber Shops'\n        WHEN '812112' THEN 'Beauty Salons'\n        WHEN '812113' THEN 'Nail Salons'\n        WHEN '812990' THEN 'Other Personal Services'\n        WHEN '813110' THEN 'Religious Organizations'\n        WHEN '813410' THEN 'Civic & Social Organizations'\n        ELSE 'Other Business Activity'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 7: Filter Org Types Starting with B\n-- ─────────────────────────────────────────\nDELETE FROM dbo.taxpayers_main\nWHERE taxpayer_organization_type LIKE 'B%';\n\n-- ─────────────────────────────────────────\n-- STEP 8: Filter Outlet Number >= 20\n-- ─────────────────────────────────────────\nDELETE FROM dbo.taxpayers_main\nWHERE TRY_CAST(outlet_number AS INT) >= 20;\n\n-- ─────────────────────────────────────────\n-- STEP 9: Remove Duplicates\n-- ─────────────────────────────────────────\nWITH CTE AS (\n    SELECT *,\n        ROW_NUMBER() OVER (\n            PARTITION BY taxpayer_number, outlet_number\n            ORDER BY outlet_permit_issue_date DESC\n        ) AS row_num\n    FROM dbo.taxpayers_main\n)\nDELETE FROM CTE WHERE row_num > 1;"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-04-19T21:58:38Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/sales_tax_socrata')]",
+				"[concat(variables('factoryId'), '/datasets/Parquet1')]",
+				"[concat(variables('factoryId'), '/datasets/SalesTaxPermitDB')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/p2_austin_tabc')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "CopyTABCData",
+						"type": "Copy",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "RestSource",
+								"httpRequestTimeout": "00:01:40",
+								"requestInterval": "00.00:00:00.010",
+								"requestMethod": "POST",
+								"requestBody": "{\"query\":\"SELECT * WHERE original_issue_date >= '2025-01-01T00:00:00' AND county IN ('Colorado', 'Bastrop', 'Travis', 'Fayette')\",\"includeSynthetic\":true}",
+								"additionalHeaders": {
+									"X-App-Token": "vjMadmfQoeuO10rDjM1ADA8AM",
+									"Content-Type": "application/json"
+								},
+								"paginationRules": {
+									"supportRFC5988": "true"
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobStorageWriteSettings",
+									"copyBehavior": "FlattenHierarchy"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false
+						},
+						"inputs": [
+							{
+								"referenceName": "ds_tabc",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "Parquet_tabc",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "CopyParquetToSQL",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Transformation_TABC",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "ParquetSource",
+								"storeSettings": {
+									"type": "AzureBlobStorageReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "tabc",
+									"wildcardFileName": "*.parquet",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "ParquetReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBatchSize": 10000,
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": true,
+								"disableMetricsCollection": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"mappings": [
+									{
+										"source": {
+											"name": "master_file_id",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "master_file_id",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "license_type",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "license_type",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "license_id",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "license_id",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "primary_status",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "primary_status",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "license_status",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "license_status",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "current_issued_date",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "current_issued_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "status_change_date",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "status_change_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "expiration_date",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "expiration_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "expiration_year",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "expiration_year",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "expiration_month",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "expiration_month",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "expiration_day",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "expiration_day",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "trade_name",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "trade_name",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "owner",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "owner",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "tbd_01",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "tbd_01",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "tbd_02",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "tbd_02",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "tbd_03",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "tbd_03",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "tbd_04",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "tbd_04",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "tbd_05",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "tbd_05",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "gun_sign",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "gun_sign",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "original_issue_date",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "original_issue_date",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "tier",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "tier",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "address",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "address",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "city",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "city",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "state",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "state",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "zip",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "zip",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "county",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "county",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "country",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "country",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "mail_address",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "mail_address",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "mail_city",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "mail_city",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "mail_state",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "mail_state",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "mail_zip",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "mail_zip",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									},
+									{
+										"source": {
+											"name": "mail_country",
+											"type": "String",
+											"physicalType": "UTF8"
+										},
+										"sink": {
+											"name": "mail_country",
+											"type": "String",
+											"physicalType": "nvarchar"
+										}
+									}
+								],
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "Parquet_tabc",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureTableTABC",
+								"type": "DatasetReference",
+								"parameters": {}
+							}
+						]
+					},
+					{
+						"name": "Script_TABC",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "CopyParquetToSQL",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, license_status, fk_tabc_license_id\n)\nSELECT\n    'TABC', license_id,\n    trade_name, owner, address, city, state, zip, county,\n    current_issued_date, license_status, license_id\nFROM dbo.tabc_permits\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits \n    WHERE source_type = 'TABC' AND business_key = license_id\n);"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "Transformation_TABC",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "CopyTABCData",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "-- ─────────────────────────────────────────\n-- STEP 1: Increase Column Sizes\n-- ─────────────────────────────────────────\nALTER TABLE dbo.tabc_permits\nALTER COLUMN county NVARCHAR(255);\n\nALTER TABLE dbo.tabc_permits\nALTER COLUMN license_type NVARCHAR(255);\n\n-- ─────────────────────────────────────────\n-- STEP 2: Standardize Text Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET\n    trade_name    = UPPER(LTRIM(RTRIM(trade_name))),\n    owner         = UPPER(LTRIM(RTRIM(owner))),\n    address       = UPPER(LTRIM(RTRIM(address))),\n    city          = UPPER(LTRIM(RTRIM(city))),\n    state         = UPPER(LTRIM(RTRIM(state))),\n    mail_address  = UPPER(LTRIM(RTRIM(mail_address))),\n    mail_city     = UPPER(LTRIM(RTRIM(mail_city))),\n    mail_state    = UPPER(LTRIM(RTRIM(mail_state)));\n\n-- ─────────────────────────────────────────\n-- STEP 3: Convert Date Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET\n    current_issued_date  = CONVERT(DATE, current_issued_date),\n    status_change_date   = CONVERT(DATE, status_change_date),\n    expiration_date      = CONVERT(DATE, expiration_date),\n    original_issue_date  = CONVERT(DATE, original_issue_date);\n\n-- ─────────────────────────────────────────\n-- STEP 4: Decode County\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET county =\n    CASE LTRIM(RTRIM(county))\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n    END\nWHERE LTRIM(RTRIM(county)) IN ('011', '227', '075', '045');\n\n-- ─────────────────────────────────────────\n-- STEP 5: Decode License Type\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET license_type =\n    CASE LTRIM(RTRIM(license_type))\n        WHEN 'MB'  THEN 'Mixed Beverage Permit'\n        WHEN 'BG'  THEN 'Wine and Malt Beverage Retailers Permit'\n        WHEN 'BE'  THEN 'Beer Retailers On-Premise License'\n        WHEN 'BF'  THEN 'Beer Retailers Off-Premise License'\n        WHEN 'BQ'  THEN 'Wine and Malt Beverage Retailers Off-Premise Permit'\n        WHEN 'P'   THEN 'Package Store Permit'\n        WHEN 'Q'   THEN 'Wine-Only Package Store Permit'\n        WHEN 'N'   THEN 'Private Club Registration Permit'\n        WHEN 'NB'  THEN 'Private Club Malt Beverage and Wine Permit'\n        WHEN 'NE'  THEN 'Private Club Exemption Permit'\n        WHEN 'D'   THEN 'Distillers and Rectifiers Permit'\n        WHEN 'G'   THEN 'Winery Permit'\n        WHEN 'BB'  THEN 'General Distributors License'\n        WHEN 'BC'  THEN 'Branch Distributors License'\n        WHEN 'BW'  THEN 'Brewers License'\n        WHEN 'BP'  THEN 'Brewpub License'\n        WHEN 'W'   THEN 'Wholesalers Permit'\n        WHEN 'X'   THEN 'General Class B Wholesalers Permit'\n        WHEN 'S'   THEN 'Nonresident Sellers Permit'\n        WHEN 'DS'  THEN 'Out-of-State Winery Direct Shippers Permit'\n        WHEN 'BN'  THEN 'Nonresident Brewers License'\n        WHEN 'CD'  THEN 'Consumer Delivery Permit'\n        WHEN 'TR'  THEN 'Passenger Transportation Permit'\n        WHEN 'FB'  THEN 'Food and Beverage Certificate'\n        WHEN 'LB'  THEN 'Late Hours Certificate'\n        ELSE 'Unknown License Type'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 6: Standardize Zip Codes\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(zip)))) \n          + LTRIM(RTRIM(zip)), 5)\nWHERE zip IS NOT NULL;\n\nUPDATE dbo.tabc_permits\nSET mail_zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(mail_zip)))) \n               + LTRIM(RTRIM(mail_zip)), 5)\nWHERE mail_zip IS NOT NULL;\n\n-- ─────────────────────────────────────────\n-- STEP 7: Remove Duplicates\n-- ─────────────────────────────────────────\nWITH CTE AS (\n    SELECT *,\n        ROW_NUMBER() OVER (\n            PARTITION BY license_id\n            ORDER BY current_issued_date DESC\n        ) AS row_num\n    FROM dbo.tabc_permits\n)\nDELETE FROM CTE WHERE row_num > 1;"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-04-19T21:58:38Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/ds_tabc')]",
+				"[concat(variables('factoryId'), '/datasets/Parquet_tabc')]",
+				"[concat(variables('factoryId'), '/datasets/AzureTableTABC')]",
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Main_Pipeline')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Pipeline1",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "p1_austin_salestax",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Execute Pipeline2",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "p2_austin_tabc",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-04-19T21:58:38Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/p1_austin_salestax')]",
+				"[concat(variables('factoryId'), '/pipelines/p2_austin_tabc')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/20April4pm')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Main_Pipeline",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Minute",
+						"interval": 15,
+						"startTime": "2026-04-20T17:00:00",
+						"endTime": "2026-04-20T20:38:00",
+						"timeZone": "Central Standard Time"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Main_Pipeline')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/Weekly Trigger')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "Main_Pipeline",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Week",
+						"interval": 1,
+						"startTime": "2026-04-27T10:00:00",
+						"timeZone": "Central Standard Time",
+						"schedule": {
+							"minutes": [
+								0
+							],
+							"hours": [
+								10
+							],
+							"weekDays": [
+								"Monday"
+							]
+						}
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/Main_Pipeline')]"
+			]
+		}
+	]
+}
