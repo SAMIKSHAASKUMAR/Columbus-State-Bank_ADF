@@ -16,13 +16,16 @@ A GitHub account with access to this repository
 --------------------------------------------------------------------------------------------------------------------------------------------
 
 ## Step 1 — Login to Azure
-
+```bash
 az login
+```
 
 
 Set your subscription if you have multiple:
 
+```bash
 az account set --subscription "<your-subscription-id>"
+```
 
 --------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -31,8 +34,10 @@ az account set --subscription "<your-subscription-id>"
 
 This creates the Resource Group, Storage Account, SQL Database, and ADF instance in your Azure environment.
 
+```bash
 terraform init
 terraform apply -var="sql_admin_password=<your_secure_password>"
+```
 
 
 Note: If you get a naming conflict error, change the `project_name` variable in `main.tf` to something unique (e.g. `mycompanyadf2025`) and retry. Storage account names must be globally unique across all of Azure.
@@ -69,7 +74,6 @@ Open `ARMTemplateParametersForFactory.json` and fill in your values from the Ter
 }
 ```
 
-> ⚠️ Never commit this file back to the repo after filling in your credentials.
 
 Then deploy:
 ```bash
@@ -150,6 +154,3 @@ Data flows through a **staging Storage Account** before being loaded into the SQ
 --------------------------------------------------------------------------------------------------------------------------------------------
 
 
-## Support
-
-For any issues with deployment, contact the project team.
