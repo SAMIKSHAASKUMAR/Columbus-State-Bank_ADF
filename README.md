@@ -1,15 +1,15 @@
-Columbus State Bank — ADF Deployment Guide
+## Columbus State Bank — ADF Deployment Guide
 
 This repository contains everything needed to deploy the Austin Sales Tax data pipeline in a new Azure environment.
 
 ---
 
-Prerequisites
+## Prerequisites
 
 Make sure you have the following installed and set up before starting:
 
-Azure CLI — to deploy the ARM template
-Terraform — to provision Azure infrastructure
+Azure CLI — to deploy the ARM template [https://learn.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest]
+Terraform — to provision Azure infrastructure [https://developer.hashicorp.com/terraform/install]
 An active Azure subscription
 A GitHub account with access to this repository
 
