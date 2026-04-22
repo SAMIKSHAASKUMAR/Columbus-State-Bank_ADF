@@ -106,6 +106,49 @@
 			"dependsOn": []
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/MergeData')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "MergeDataInMaster",
+						"type": "Script",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "-- Update Sales Tax record with TABC fk where business_key matches\nUPDATE mp\nSET\n    mp.fk_tabc_license_id = t.license_id,\n    mp.license_status     = t.license_status,\n    mp.source_type        = 'BOTH',\n    mp.updated_at         = CONVERT(NVARCHAR, GETDATE(), 120)\nFROM dbo.master_permits mp\nINNER JOIN dbo.tabc_permits t\n    ON mp.business_key = CONCAT(t.trade_name, '-', t.address, '-', t.city)\nWHERE mp.source_type = 'SALESTAX';\n\n-- Delete the now-duplicate TABC only record\nDELETE FROM dbo.master_permits\nWHERE source_type = 'TABC'\nAND business_key IN (\n    SELECT business_key FROM dbo.master_permits\n    WHERE source_type = 'BOTH'\n);"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-04-21T23:08:51Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/AzureSqlTable1')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -439,6 +482,31 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/Parquet_salestax')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "ls_blob_storage",
+					"type": "LinkedServiceReference"
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobStorageLocation",
+						"folderPath": "socrata",
+						"container": "staging"
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_blob_storage')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Parquet_tabc')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
@@ -695,7 +763,7 @@
 						],
 						"outputs": [
 							{
-								"referenceName": "Parquet1",
+								"referenceName": "Parquet_salestax",
 								"type": "DatasetReference",
 								"parameters": {}
 							}
@@ -706,7 +774,7 @@
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "Transformation_script_salestax",
+								"activity": "CopySocrataData",
 								"dependencyConditions": [
 									"Completed"
 								]
@@ -983,7 +1051,7 @@
 						},
 						"inputs": [
 							{
-								"referenceName": "Parquet1",
+								"referenceName": "Parquet_salestax",
 								"type": "DatasetReference",
 								"parameters": {}
 							}
@@ -998,6 +1066,39 @@
 					},
 					{
 						"name": "Script_SalesTax",
+						"type": "Script",
+						"dependsOn": [
+							{
+								"activity": "Normalization_salesTax",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, license_status, fk_taxpayer_number, fk_tabc_license_id,\n    created_at, updated_at\n)\nSELECT\n    'SALESTAX',\n    CONCAT(ISNULL(outlet_name, taxpayer_number), '-', outlet_address, '-', outlet_city),\n    outlet_name, taxpayer_name, outlet_address, outlet_city, outlet_state,\n    outlet_zip_code, outlet_county_code,\n    outlet_permit_issue_date, NULL, taxpayer_number, NULL,\n    CONVERT(NVARCHAR, GETDATE(), 120), CONVERT(NVARCHAR, GETDATE(), 120)\nFROM dbo.taxpayers_main\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits\n    WHERE business_key = CONCAT(ISNULL(outlet_name, taxpayer_number), '-', outlet_address, '-', outlet_city)\n    AND source_type = 'SALESTAX'\n);"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "Transformation_script_salestax",
 						"type": "Script",
 						"dependsOn": [
 							{
@@ -1023,18 +1124,18 @@
 							"scripts": [
 								{
 									"type": "NonQuery",
-									"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, fk_taxpayer_number\n)\nSELECT\n    'SALESTAX', CONCAT(taxpayer_number, '-', outlet_number),\n    outlet_name, taxpayer_name, outlet_address, outlet_city, outlet_state, outlet_zip_code, outlet_county_code,\n    outlet_permit_issue_date, taxpayer_number\nFROM dbo.taxpayers_main\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits \n    WHERE source_type = 'SALESTAX' \n    AND business_key = CONCAT(taxpayer_number, '-', outlet_number)\n);"
+									"text": "-- STEP 1: Standardize Text Columns\nUPDATE dbo.taxpayers_main\nSET\n    taxpayer_name    = UPPER(LTRIM(RTRIM(taxpayer_name))),\n    taxpayer_address = UPPER(LTRIM(RTRIM(REPLACE(taxpayer_address, '%', 'C/O')))),\n    taxpayer_city    = UPPER(LTRIM(RTRIM(taxpayer_city))),\n    outlet_name      = UPPER(LTRIM(RTRIM(outlet_name))),\n    outlet_address   = UPPER(LTRIM(RTRIM(REPLACE(outlet_address, '%', 'C/O')))),\n    outlet_city      = UPPER(LTRIM(RTRIM(outlet_city)));\n\n-- STEP 2: Convert Date Columns\nUPDATE dbo.taxpayers_main\nSET\n    outlet_permit_issue_date = CONVERT(DATE, outlet_permit_issue_date),\n    outlet_first_sales_date  = CONVERT(DATE, outlet_first_sales_date);\n\n-- STEP 4: Decode Outlet County Code\nUPDATE dbo.taxpayers_main\nSET outlet_county_code =\n    CASE outlet_county_code\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n        ELSE 'Other County'\n    END;\n\n-- STEP 5: Decode Organization Type\nUPDATE dbo.taxpayers_main\nSET taxpayer_organization_type =\n    CASE taxpayer_organization_type\n        WHEN 'CT' THEN 'Texas Domestic Profit Corporation'\n        WHEN 'CL' THEN 'Texas Limited Liability Company'\n        WHEN 'CN' THEN 'Texas Domestic Nonprofit Corporation'\n        WHEN 'CF' THEN 'Foreign Out-of-State Profit Corporation'\n        WHEN 'CI' THEN 'Foreign Limited Liability Company'\n        WHEN 'CM' THEN 'Foreign Out-of-State Nonprofit Corporation'\n        WHEN 'CP' THEN 'Professional Corporation'\n        WHEN 'CU' THEN 'Foreign Professional Corporation'\n        WHEN 'PI' THEN 'Individual General Partnership'\n        WHEN 'PB' THEN 'Business General Partnership'\n        WHEN 'PL' THEN 'Texas Limited Partnership'\n        WHEN 'PF' THEN 'Foreign Limited Partnership'\n        WHEN 'PV' THEN 'Texas Joint Venture'\n        WHEN 'PW' THEN 'Foreign Joint Venture'\n        WHEN 'AP' THEN 'Professional Association'\n        WHEN 'AB' THEN 'Texas Business Association'\n        WHEN 'AC' THEN 'Foreign Business Association'\n        WHEN 'GC' THEN 'Government - City'\n        WHEN 'GO' THEN 'Government - County'\n        WHEN 'GS' THEN 'Government - School District'\n        WHEN 'GT' THEN 'Government - Texas State Agency'\n        WHEN 'GU' THEN 'Government - State University'\n        WHEN 'IS' THEN 'Individual Sole Owner'\n        WHEN 'ES' THEN 'Estate'\n        WHEN 'TR' THEN 'Trust'\n        WHEN 'UK' THEN 'Unknown'\n        ELSE 'Unknown Organization Type'\n    END;\n\n-- STEP 6: Decode NAICS Code\nUPDATE dbo.taxpayers_main\nSET outlet_naics_code =\n    CASE outlet_naics_code\n        WHEN '441110' THEN 'New Car Dealers'\n        WHEN '441120' THEN 'Used Car Dealers'\n        WHEN '441300' THEN 'Automotive Parts & Accessories'\n        WHEN '442110' THEN 'Furniture Stores'\n        WHEN '443142' THEN 'Electronics Stores'\n        WHEN '444110' THEN 'Home Centers'\n        WHEN '444130' THEN 'Hardware Stores'\n        WHEN '445110' THEN 'Supermarkets & Grocery Stores'\n        WHEN '445120' THEN 'Convenience Stores'\n        WHEN '445310' THEN 'Beer, Wine & Liquor Stores'\n        WHEN '446110' THEN 'Pharmacies & Drug Stores'\n        WHEN '447110' THEN 'Gasoline Stations with Convenience Stores'\n        WHEN '447190' THEN 'Other Gasoline Stations'\n        WHEN '448110' THEN 'Mens Clothing Stores'\n        WHEN '448120' THEN 'Womens Clothing Stores'\n        WHEN '448140' THEN 'Family Clothing Stores'\n        WHEN '451110' THEN 'Sporting Goods Stores'\n        WHEN '451211' THEN 'Book Stores'\n        WHEN '452210' THEN 'Department Stores'\n        WHEN '453110' THEN 'Florists'\n        WHEN '453220' THEN 'Gift Novelty & Souvenir Stores'\n        WHEN '453310' THEN 'Used Merchandise Stores'\n        WHEN '453998' THEN 'Miscellaneous Retail Stores'\n        WHEN '522298' THEN 'Pawn Shops & Other Consumer Lending'\n        WHEN '722110' THEN 'Full-Service Restaurants'\n        WHEN '722210' THEN 'Limited-Service Eating Places'\n        WHEN '722410' THEN 'Drinking Places - Alcoholic Beverages'\n        WHEN '722511' THEN 'Full-Service Restaurants'\n        WHEN '722513' THEN 'Limited-Service Restaurants'\n        WHEN '722515' THEN 'Snack & Nonalcoholic Beverage Bars'\n        WHEN '236115' THEN 'New Single-Family Home Construction'\n        WHEN '236118' THEN 'Residential Remodelers'\n        WHEN '236220' THEN 'Commercial & Institutional Building Construction'\n        WHEN '238110' THEN 'Poured Concrete Foundation Contractors'\n        WHEN '238210' THEN 'Electrical Contractors'\n        WHEN '238220' THEN 'Plumbing Heating & Air-Conditioning'\n        WHEN '238320' THEN 'Painting & Wall Covering Contractors'\n        WHEN '238330' THEN 'Flooring Contractors'\n        WHEN '424720' THEN 'Petroleum & Petroleum Products Wholesalers'\n        WHEN '424810' THEN 'Beer & Ale Merchant Wholesalers'\n        WHEN '531110' THEN 'Lessors of Residential Buildings'\n        WHEN '531120' THEN 'Lessors of Nonresidential Buildings'\n        WHEN '541511' THEN 'Custom Computer Programming Services'\n        WHEN '541512' THEN 'Computer Systems Design Services'\n        WHEN '561720' THEN 'Janitorial Services'\n        WHEN '561730' THEN 'Landscaping Services'\n        WHEN '611110' THEN 'Elementary & Secondary Schools'\n        WHEN '621111' THEN 'Offices of Physicians'\n        WHEN '621210' THEN 'Offices of Dentists'\n        WHEN '622110' THEN 'General Medical & Surgical Hospitals'\n        WHEN '711219' THEN 'Other Spectator Sports'\n        WHEN '721110' THEN 'Hotels & Motels'\n        WHEN '811111' THEN 'General Automotive Repair'\n        WHEN '811192' THEN 'Car Washes'\n        WHEN '812111' THEN 'Barber Shops'\n        WHEN '812112' THEN 'Beauty Salons'\n        WHEN '812113' THEN 'Nail Salons'\n        WHEN '812990' THEN 'Other Personal Services'\n        WHEN '813110' THEN 'Religious Organizations'\n        WHEN '813410' THEN 'Civic & Social Organizations'\n        ELSE 'Other Business Activity'\n    END;\n\n-- STEP 7: Filter Org Types Starting with B\nDELETE FROM dbo.taxpayers_main\nWHERE taxpayer_organization_type LIKE 'B%';\n\n-- STEP 8: Filter Outlet Number >= 20\nDELETE FROM dbo.taxpayers_main\nWHERE TRY_CAST(outlet_number AS INT) >= 20;"
 								}
 							],
 							"scriptBlockExecutionTimeout": "02:00:00"
 						}
 					},
 					{
-						"name": "Transformation_script_salestax",
+						"name": "Normalization_salesTax",
 						"type": "Script",
 						"dependsOn": [
 							{
-								"activity": "CopySocrataData",
+								"activity": "Transformation_script_salestax",
 								"dependencyConditions": [
 									"Completed"
 								]
@@ -1056,10 +1157,44 @@
 							"scripts": [
 								{
 									"type": "NonQuery",
-									"text": "-- ─────────────────────────────────────────\n-- STEP 1: Standardize Text Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET\n    taxpayer_name    = UPPER(LTRIM(RTRIM(taxpayer_name))),\n    taxpayer_address = UPPER(LTRIM(RTRIM(REPLACE(taxpayer_address, '%', 'C/O')))),\n    taxpayer_city    = UPPER(LTRIM(RTRIM(taxpayer_city))),\n    outlet_name      = UPPER(LTRIM(RTRIM(outlet_name))),\n    outlet_address   = UPPER(LTRIM(RTRIM(REPLACE(outlet_address, '%', 'C/O')))),\n    outlet_city      = UPPER(LTRIM(RTRIM(outlet_city)));\n\n-- ─────────────────────────────────────────\n-- STEP 2: Convert Date Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET\n    outlet_permit_issue_date = CONVERT(DATE, outlet_permit_issue_date),\n    outlet_first_sales_date  = CONVERT(DATE, outlet_first_sales_date);\n\n-- ─────────────────────────────────────────\n-- STEP 4: Decode Outlet County Code\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET outlet_county_code =\n    CASE outlet_county_code\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n        ELSE 'Other County'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 5: Decode Organization Type\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET taxpayer_organization_type =\n    CASE taxpayer_organization_type\n        WHEN 'CT' THEN 'Texas Domestic Profit Corporation'\n        WHEN 'CL' THEN 'Texas Limited Liability Company'\n        WHEN 'CN' THEN 'Texas Domestic Nonprofit Corporation'\n        WHEN 'CF' THEN 'Foreign Out-of-State Profit Corporation'\n        WHEN 'CI' THEN 'Foreign Limited Liability Company'\n        WHEN 'CM' THEN 'Foreign Out-of-State Nonprofit Corporation'\n        WHEN 'CP' THEN 'Professional Corporation'\n        WHEN 'CU' THEN 'Foreign Professional Corporation'\n        WHEN 'PI' THEN 'Individual General Partnership'\n        WHEN 'PB' THEN 'Business General Partnership'\n        WHEN 'PL' THEN 'Texas Limited Partnership'\n        WHEN 'PF' THEN 'Foreign Limited Partnership'\n        WHEN 'PV' THEN 'Texas Joint Venture'\n        WHEN 'PW' THEN 'Foreign Joint Venture'\n        WHEN 'AP' THEN 'Professional Association'\n        WHEN 'AB' THEN 'Texas Business Association'\n        WHEN 'AC' THEN 'Foreign Business Association'\n        WHEN 'GC' THEN 'Government - City'\n        WHEN 'GO' THEN 'Government - County'\n        WHEN 'GS' THEN 'Government - School District'\n        WHEN 'GT' THEN 'Government - Texas State Agency'\n        WHEN 'GU' THEN 'Government - State University'\n        WHEN 'IS' THEN 'Individual Sole Owner'\n        WHEN 'ES' THEN 'Estate'\n        WHEN 'TR' THEN 'Trust'\n        WHEN 'UK' THEN 'Unknown'\n        ELSE 'Unknown Organization Type'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 6: Decode NAICS Code\n-- ─────────────────────────────────────────\nUPDATE dbo.taxpayers_main\nSET outlet_naics_code =\n    CASE outlet_naics_code\n        WHEN '441110' THEN 'New Car Dealers'\n        WHEN '441120' THEN 'Used Car Dealers'\n        WHEN '441300' THEN 'Automotive Parts & Accessories'\n        WHEN '442110' THEN 'Furniture Stores'\n        WHEN '443142' THEN 'Electronics Stores'\n        WHEN '444110' THEN 'Home Centers'\n        WHEN '444130' THEN 'Hardware Stores'\n        WHEN '445110' THEN 'Supermarkets & Grocery Stores'\n        WHEN '445120' THEN 'Convenience Stores'\n        WHEN '445310' THEN 'Beer, Wine & Liquor Stores'\n        WHEN '446110' THEN 'Pharmacies & Drug Stores'\n        WHEN '447110' THEN 'Gasoline Stations with Convenience Stores'\n        WHEN '447190' THEN 'Other Gasoline Stations'\n        WHEN '448110' THEN 'Mens Clothing Stores'\n        WHEN '448120' THEN 'Womens Clothing Stores'\n        WHEN '448140' THEN 'Family Clothing Stores'\n        WHEN '451110' THEN 'Sporting Goods Stores'\n        WHEN '451211' THEN 'Book Stores'\n        WHEN '452210' THEN 'Department Stores'\n        WHEN '453110' THEN 'Florists'\n        WHEN '453220' THEN 'Gift Novelty & Souvenir Stores'\n        WHEN '453310' THEN 'Used Merchandise Stores'\n        WHEN '453998' THEN 'Miscellaneous Retail Stores'\n        WHEN '522298' THEN 'Pawn Shops & Other Consumer Lending'\n        WHEN '722110' THEN 'Full-Service Restaurants'\n        WHEN '722210' THEN 'Limited-Service Eating Places'\n        WHEN '722410' THEN 'Drinking Places - Alcoholic Beverages'\n        WHEN '722511' THEN 'Full-Service Restaurants'\n        WHEN '722513' THEN 'Limited-Service Restaurants'\n        WHEN '722515' THEN 'Snack & Nonalcoholic Beverage Bars'\n        WHEN '236115' THEN 'New Single-Family Home Construction'\n        WHEN '236118' THEN 'Residential Remodelers'\n        WHEN '236220' THEN 'Commercial & Institutional Building Construction'\n        WHEN '238110' THEN 'Poured Concrete Foundation Contractors'\n        WHEN '238210' THEN 'Electrical Contractors'\n        WHEN '238220' THEN 'Plumbing Heating & Air-Conditioning'\n        WHEN '238320' THEN 'Painting & Wall Covering Contractors'\n        WHEN '238330' THEN 'Flooring Contractors'\n        WHEN '424720' THEN 'Petroleum & Petroleum Products Wholesalers'\n        WHEN '424810' THEN 'Beer & Ale Merchant Wholesalers'\n        WHEN '531110' THEN 'Lessors of Residential Buildings'\n        WHEN '531120' THEN 'Lessors of Nonresidential Buildings'\n        WHEN '541511' THEN 'Custom Computer Programming Services'\n        WHEN '541512' THEN 'Computer Systems Design Services'\n        WHEN '561720' THEN 'Janitorial Services'\n        WHEN '561730' THEN 'Landscaping Services'\n        WHEN '611110' THEN 'Elementary & Secondary Schools'\n        WHEN '621111' THEN 'Offices of Physicians'\n        WHEN '621210' THEN 'Offices of Dentists'\n        WHEN '622110' THEN 'General Medical & Surgical Hospitals'\n        WHEN '711219' THEN 'Other Spectator Sports'\n        WHEN '721110' THEN 'Hotels & Motels'\n        WHEN '811111' THEN 'General Automotive Repair'\n        WHEN '811192' THEN 'Car Washes'\n        WHEN '812111' THEN 'Barber Shops'\n        WHEN '812112' THEN 'Beauty Salons'\n        WHEN '812113' THEN 'Nail Salons'\n        WHEN '812990' THEN 'Other Personal Services'\n        WHEN '813110' THEN 'Religious Organizations'\n        WHEN '813410' THEN 'Civic & Social Organizations'\n        ELSE 'Other Business Activity'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 7: Filter Org Types Starting with B\n-- ─────────────────────────────────────────\nDELETE FROM dbo.taxpayers_main\nWHERE taxpayer_organization_type LIKE 'B%';\n\n-- ─────────────────────────────────────────\n-- STEP 8: Filter Outlet Number >= 20\n-- ─────────────────────────────────────────\nDELETE FROM dbo.taxpayers_main\nWHERE TRY_CAST(outlet_number AS INT) >= 20;\n\n-- ─────────────────────────────────────────\n-- STEP 9: Remove Duplicates\n-- ─────────────────────────────────────────\nWITH CTE AS (\n    SELECT *,\n        ROW_NUMBER() OVER (\n            PARTITION BY taxpayer_number, outlet_number\n            ORDER BY outlet_permit_issue_date DESC\n        ) AS row_num\n    FROM dbo.taxpayers_main\n)\nDELETE FROM CTE WHERE row_num > 1;"
+									"text": "-- Address normalization\nUPDATE dbo.taxpayers_main\nSET outlet_address = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(\n    outlet_address, '.',''),',',''),'#',''),'\"',''),'''','');\n\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' NORTH ', ' N ');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' SOUTH ', ' S ');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' EAST ',  ' E ');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' WEST ',  ' W ');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' NORTHEAST ', ' NE ');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' NORTHWEST ', ' NW ');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' SOUTHEAST ', ' SE ');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' SOUTHWEST ', ' SW ');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' STREET',    ' ST');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' AVENUE',    ' AVE');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' BOULEVARD', ' BLVD');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' DRIVE',     ' DR');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' ROAD',      ' RD');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' LANE',      ' LN');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' COURT',     ' CT');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' CIRCLE',    ' CIR');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' HIGHWAY',   ' HWY');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' FREEWAY',   ' FWY');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' PARKWAY',   ' PKWY');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' TRAIL',     ' TRL');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' PLACE',     ' PL');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' SUITE',     ' STE');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' APARTMENT', ' APT');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' BUILDING',  ' BLDG');\nUPDATE dbo.taxpayers_main SET outlet_address = REPLACE(outlet_address, ' FLOOR',     ' FL');\n\nUPDATE dbo.taxpayers_main\nSET outlet_address = LTRIM(RTRIM(\n    REPLACE(REPLACE(REPLACE(outlet_address, '   ',' '),'  ',' '),'  ',' ')\n));\n\n-- Name normalization\nUPDATE dbo.taxpayers_main\nSET outlet_name = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(\n    outlet_name, '.',''),',',''),'#',''),'\"',''),'''',''),'-',' ');\n\nUPDATE dbo.taxpayers_main SET outlet_name = REPLACE(outlet_name, ' & ', ' AND ');\nUPDATE dbo.taxpayers_main SET outlet_name = REPLACE(outlet_name, ' LLC',  '');\nUPDATE dbo.taxpayers_main SET outlet_name = REPLACE(outlet_name, ' INC',  '');\nUPDATE dbo.taxpayers_main SET outlet_name = REPLACE(outlet_name, ' CORP', '');\nUPDATE dbo.taxpayers_main SET outlet_name = REPLACE(outlet_name, ' LTD',  '');\nUPDATE dbo.taxpayers_main SET outlet_name = REPLACE(outlet_name, ' CO',   '');\nUPDATE dbo.taxpayers_main SET outlet_name = REPLACE(outlet_name, ' DBA',  '');\nUPDATE dbo.taxpayers_main SET outlet_name = REPLACE(outlet_name, ' LP',   '');\n\nUPDATE dbo.taxpayers_main\nSET outlet_name = LTRIM(STUFF(outlet_name, 1, 4, ''))\nWHERE outlet_name LIKE 'THE %';\n\nUPDATE dbo.taxpayers_main\nSET outlet_name = LTRIM(RTRIM(\n    REPLACE(REPLACE(REPLACE(outlet_name, '   ',' '),'  ',' '),'  ',' ')\n));\n\n-- Dedup: keep latest record per location\nWITH CTE AS (\n    SELECT *, ROW_NUMBER() OVER (\n        PARTITION BY CONCAT(\n            UPPER(ISNULL(outlet_name, taxpayer_number)), '-',\n            UPPER(outlet_address), '-',\n            UPPER(outlet_city)\n        )\n        ORDER BY TRY_CAST(outlet_permit_issue_date AS DATE) DESC\n    ) AS row_num\n    FROM dbo.taxpayers_main\n)\nDELETE FROM CTE WHERE row_num > 1;"
 								}
 							],
 							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "Delete_Parquet",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "Script_SalesTax",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "Parquet_salestax",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"wildcardFileName": "*.parquet",
+								"enablePartitionDiscovery": false
+							}
 						}
 					}
 				],
@@ -1067,11 +1202,11 @@
 					"elapsedTimeMetric": {}
 				},
 				"annotations": [],
-				"lastPublishTime": "2026-04-19T21:58:38Z"
+				"lastPublishTime": "2026-04-21T23:08:51Z"
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/sales_tax_socrata')]",
-				"[concat(variables('factoryId'), '/datasets/Parquet1')]",
+				"[concat(variables('factoryId'), '/datasets/Parquet_salestax')]",
 				"[concat(variables('factoryId'), '/datasets/SalesTaxPermitDB')]",
 				"[concat(variables('factoryId'), '/linkedServices/AzureSqlDatabase1')]"
 			]
@@ -1141,7 +1276,7 @@
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "Transformation_TABC",
+								"activity": "CopyTABCData",
 								"dependencyConditions": [
 									"Completed"
 								]
@@ -1592,6 +1727,39 @@
 						"type": "Script",
 						"dependsOn": [
 							{
+								"activity": "Normalize_TABC",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"linkedServiceName": {
+							"referenceName": "AzureSqlDatabase1",
+							"type": "LinkedServiceReference"
+						},
+						"typeProperties": {
+							"scripts": [
+								{
+									"type": "NonQuery",
+									"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, license_status, fk_taxpayer_number, fk_tabc_license_id,\n    created_at, updated_at\n)\nSELECT\n    'TABC',\n    CONCAT(ISNULL(trade_name, license_id), '-', address, '-', city),\n    trade_name, owner, address, city, state, zip, county,\n    current_issued_date, license_status, NULL, license_id,\n    CONVERT(NVARCHAR, GETDATE(), 120), CONVERT(NVARCHAR, GETDATE(), 120)\nFROM dbo.tabc_permits\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits\n    WHERE business_key = CONCAT(ISNULL(trade_name, license_id), '-', address, '-', city)\n    AND source_type = 'TABC'\n);"
+								}
+							],
+							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "Transformation_TABC",
+						"type": "Script",
+						"dependsOn": [
+							{
 								"activity": "CopyParquetToSQL",
 								"dependencyConditions": [
 									"Completed"
@@ -1614,18 +1782,18 @@
 							"scripts": [
 								{
 									"type": "NonQuery",
-									"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, license_status, fk_tabc_license_id\n)\nSELECT\n    'TABC', license_id,\n    trade_name, owner, address, city, state, zip, county,\n    current_issued_date, license_status, license_id\nFROM dbo.tabc_permits\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits \n    WHERE source_type = 'TABC' AND business_key = license_id\n);"
+									"text": "-- STEP 1: Increase Column Sizes\nALTER TABLE dbo.tabc_permits ALTER COLUMN county NVARCHAR(255);\nALTER TABLE dbo.tabc_permits ALTER COLUMN license_type NVARCHAR(255);\n\n-- STEP 2: Standardize Text Columns\nUPDATE dbo.tabc_permits\nSET\n    trade_name   = UPPER(LTRIM(RTRIM(trade_name))),\n    owner        = UPPER(LTRIM(RTRIM(owner))),\n    address      = UPPER(LTRIM(RTRIM(address))),\n    city         = UPPER(LTRIM(RTRIM(city))),\n    state        = UPPER(LTRIM(RTRIM(state))),\n    mail_address = UPPER(LTRIM(RTRIM(mail_address))),\n    mail_city    = UPPER(LTRIM(RTRIM(mail_city))),\n    mail_state   = UPPER(LTRIM(RTRIM(mail_state)));\n\n-- STEP 3: Convert Date Columns\nUPDATE dbo.tabc_permits\nSET\n    current_issued_date = CONVERT(DATE, current_issued_date),\n    status_change_date  = CONVERT(DATE, status_change_date),\n    expiration_date     = CONVERT(DATE, expiration_date),\n    original_issue_date = CONVERT(DATE, original_issue_date);\n\n-- STEP 4: Decode County\nUPDATE dbo.tabc_permits\nSET county =\n    CASE LTRIM(RTRIM(county))\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n    END\nWHERE LTRIM(RTRIM(county)) IN ('011', '227', '075', '045');\n\n-- STEP 5: Decode License Type\nUPDATE dbo.tabc_permits\nSET license_type =\n    CASE LTRIM(RTRIM(license_type))\n        WHEN 'MB'  THEN 'Mixed Beverage Permit'\n        WHEN 'BG'  THEN 'Wine and Malt Beverage Retailers Permit'\n        WHEN 'BE'  THEN 'Beer Retailers On-Premise License'\n        WHEN 'BF'  THEN 'Beer Retailers Off-Premise License'\n        WHEN 'BQ'  THEN 'Wine and Malt Beverage Retailers Off-Premise Permit'\n        WHEN 'P'   THEN 'Package Store Permit'\n        WHEN 'Q'   THEN 'Wine-Only Package Store Permit'\n        WHEN 'N'   THEN 'Private Club Registration Permit'\n        WHEN 'NB'  THEN 'Private Club Malt Beverage and Wine Permit'\n        WHEN 'NE'  THEN 'Private Club Exemption Permit'\n        WHEN 'D'   THEN 'Distillers and Rectifiers Permit'\n        WHEN 'G'   THEN 'Winery Permit'\n        WHEN 'BB'  THEN 'General Distributors License'\n        WHEN 'BC'  THEN 'Branch Distributors License'\n        WHEN 'BW'  THEN 'Brewers License'\n        WHEN 'BP'  THEN 'Brewpub License'\n        WHEN 'W'   THEN 'Wholesalers Permit'\n        WHEN 'X'   THEN 'General Class B Wholesalers Permit'\n        WHEN 'S'   THEN 'Nonresident Sellers Permit'\n        WHEN 'DS'  THEN 'Out-of-State Winery Direct Shippers Permit'\n        WHEN 'BN'  THEN 'Nonresident Brewers License'\n        WHEN 'CD'  THEN 'Consumer Delivery Permit'\n        WHEN 'TR'  THEN 'Passenger Transportation Permit'\n        WHEN 'FB'  THEN 'Food and Beverage Certificate'\n        WHEN 'LB'  THEN 'Late Hours Certificate'\n        ELSE 'Unknown License Type'\n    END;\n\n-- STEP 6: Standardize Zip Codes\nUPDATE dbo.tabc_permits\nSET zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(zip)))) + LTRIM(RTRIM(zip)), 5)\nWHERE zip IS NOT NULL;\n\nUPDATE dbo.tabc_permits\nSET mail_zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(mail_zip)))) + LTRIM(RTRIM(mail_zip)), 5)\nWHERE mail_zip IS NOT NULL;"
 								}
 							],
 							"scriptBlockExecutionTimeout": "02:00:00"
 						}
 					},
 					{
-						"name": "Transformation_TABC",
+						"name": "Normalize_TABC",
 						"type": "Script",
 						"dependsOn": [
 							{
-								"activity": "CopyTABCData",
+								"activity": "Transformation_TABC",
 								"dependencyConditions": [
 									"Completed"
 								]
@@ -1647,10 +1815,44 @@
 							"scripts": [
 								{
 									"type": "NonQuery",
-									"text": "-- ─────────────────────────────────────────\n-- STEP 1: Increase Column Sizes\n-- ─────────────────────────────────────────\nALTER TABLE dbo.tabc_permits\nALTER COLUMN county NVARCHAR(255);\n\nALTER TABLE dbo.tabc_permits\nALTER COLUMN license_type NVARCHAR(255);\n\n-- ─────────────────────────────────────────\n-- STEP 2: Standardize Text Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET\n    trade_name    = UPPER(LTRIM(RTRIM(trade_name))),\n    owner         = UPPER(LTRIM(RTRIM(owner))),\n    address       = UPPER(LTRIM(RTRIM(address))),\n    city          = UPPER(LTRIM(RTRIM(city))),\n    state         = UPPER(LTRIM(RTRIM(state))),\n    mail_address  = UPPER(LTRIM(RTRIM(mail_address))),\n    mail_city     = UPPER(LTRIM(RTRIM(mail_city))),\n    mail_state    = UPPER(LTRIM(RTRIM(mail_state)));\n\n-- ─────────────────────────────────────────\n-- STEP 3: Convert Date Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET\n    current_issued_date  = CONVERT(DATE, current_issued_date),\n    status_change_date   = CONVERT(DATE, status_change_date),\n    expiration_date      = CONVERT(DATE, expiration_date),\n    original_issue_date  = CONVERT(DATE, original_issue_date);\n\n-- ─────────────────────────────────────────\n-- STEP 4: Decode County\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET county =\n    CASE LTRIM(RTRIM(county))\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n    END\nWHERE LTRIM(RTRIM(county)) IN ('011', '227', '075', '045');\n\n-- ─────────────────────────────────────────\n-- STEP 5: Decode License Type\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET license_type =\n    CASE LTRIM(RTRIM(license_type))\n        WHEN 'MB'  THEN 'Mixed Beverage Permit'\n        WHEN 'BG'  THEN 'Wine and Malt Beverage Retailers Permit'\n        WHEN 'BE'  THEN 'Beer Retailers On-Premise License'\n        WHEN 'BF'  THEN 'Beer Retailers Off-Premise License'\n        WHEN 'BQ'  THEN 'Wine and Malt Beverage Retailers Off-Premise Permit'\n        WHEN 'P'   THEN 'Package Store Permit'\n        WHEN 'Q'   THEN 'Wine-Only Package Store Permit'\n        WHEN 'N'   THEN 'Private Club Registration Permit'\n        WHEN 'NB'  THEN 'Private Club Malt Beverage and Wine Permit'\n        WHEN 'NE'  THEN 'Private Club Exemption Permit'\n        WHEN 'D'   THEN 'Distillers and Rectifiers Permit'\n        WHEN 'G'   THEN 'Winery Permit'\n        WHEN 'BB'  THEN 'General Distributors License'\n        WHEN 'BC'  THEN 'Branch Distributors License'\n        WHEN 'BW'  THEN 'Brewers License'\n        WHEN 'BP'  THEN 'Brewpub License'\n        WHEN 'W'   THEN 'Wholesalers Permit'\n        WHEN 'X'   THEN 'General Class B Wholesalers Permit'\n        WHEN 'S'   THEN 'Nonresident Sellers Permit'\n        WHEN 'DS'  THEN 'Out-of-State Winery Direct Shippers Permit'\n        WHEN 'BN'  THEN 'Nonresident Brewers License'\n        WHEN 'CD'  THEN 'Consumer Delivery Permit'\n        WHEN 'TR'  THEN 'Passenger Transportation Permit'\n        WHEN 'FB'  THEN 'Food and Beverage Certificate'\n        WHEN 'LB'  THEN 'Late Hours Certificate'\n        ELSE 'Unknown License Type'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 6: Standardize Zip Codes\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(zip)))) \n          + LTRIM(RTRIM(zip)), 5)\nWHERE zip IS NOT NULL;\n\nUPDATE dbo.tabc_permits\nSET mail_zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(mail_zip)))) \n               + LTRIM(RTRIM(mail_zip)), 5)\nWHERE mail_zip IS NOT NULL;\n\n-- ─────────────────────────────────────────\n-- STEP 7: Remove Duplicates\n-- ─────────────────────────────────────────\nWITH CTE AS (\n    SELECT *,\n        ROW_NUMBER() OVER (\n            PARTITION BY license_id\n            ORDER BY current_issued_date DESC\n        ) AS row_num\n    FROM dbo.tabc_permits\n)\nDELETE FROM CTE WHERE row_num > 1;"
+									"text": "-- Address normalization\nUPDATE dbo.tabc_permits\nSET address = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(\n    address, '.',''),',',''),'#',''),'\"',''),'''','');\n\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' NORTH ', ' N ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' SOUTH ', ' S ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' EAST ',  ' E ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' WEST ',  ' W ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' NORTHEAST ', ' NE ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' NORTHWEST ', ' NW ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' SOUTHEAST ', ' SE ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' SOUTHWEST ', ' SW ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' STREET',    ' ST');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' AVENUE',    ' AVE');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' BOULEVARD', ' BLVD');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' DRIVE',     ' DR');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' ROAD',      ' RD');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' LANE',      ' LN');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' COURT',     ' CT');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' CIRCLE',    ' CIR');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' HIGHWAY',   ' HWY');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' FREEWAY',   ' FWY');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' PARKWAY',   ' PKWY');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' TRAIL',     ' TRL');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' PLACE',     ' PL');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' SUITE',     ' STE');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' APARTMENT', ' APT');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' BUILDING',  ' BLDG');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' FLOOR',     ' FL');\n\nUPDATE dbo.tabc_permits\nSET address = LTRIM(RTRIM(\n    REPLACE(REPLACE(REPLACE(address, '   ',' '),'  ',' '),'  ',' ')\n));\n\n-- Trade name normalization\nUPDATE dbo.tabc_permits\nSET trade_name = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(\n    trade_name, '.',''),',',''),'#',''),'\"',''),'''',''),'-',' ');\n\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' & ', ' AND ');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' LLC',  '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' INC',  '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' CORP', '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' LTD',  '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' CO',   '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' DBA',  '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' LP',   '');\n\nUPDATE dbo.tabc_permits\nSET trade_name = LTRIM(STUFF(trade_name, 1, 4, ''))\nWHERE trade_name LIKE 'THE %';\n\nUPDATE dbo.tabc_permits\nSET trade_name = LTRIM(RTRIM(\n    REPLACE(REPLACE(REPLACE(trade_name, '   ',' '),'  ',' '),'  ',' ')\n));\n\n-- Dedup: keep latest active license per location\nWITH CTE AS (\n    SELECT *, ROW_NUMBER() OVER (\n        PARTITION BY CONCAT(\n            UPPER(ISNULL(trade_name, license_id)), '-',\n            UPPER(address), '-',\n            UPPER(city)\n        )\n        ORDER BY\n            CASE WHEN primary_status = 'Active' THEN 0 ELSE 1 END,\n            TRY_CAST(current_issued_date AS DATE) DESC\n    ) AS row_num\n    FROM dbo.tabc_permits\n)\nDELETE FROM CTE WHERE row_num > 1;"
 								}
 							],
 							"scriptBlockExecutionTimeout": "02:00:00"
+						}
+					},
+					{
+						"name": "DeleteParquetFiles",
+						"type": "Delete",
+						"dependsOn": [
+							{
+								"activity": "Script_TABC",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "Parquet_tabc",
+								"type": "DatasetReference",
+								"parameters": {}
+							},
+							"enableLogging": false,
+							"storeSettings": {
+								"type": "AzureBlobStorageReadSettings",
+								"recursive": true,
+								"wildcardFileName": "*.parquet",
+								"enablePartitionDiscovery": false
+							}
 						}
 					}
 				],
@@ -1658,7 +1860,7 @@
 					"elapsedTimeMetric": {}
 				},
 				"annotations": [],
-				"lastPublishTime": "2026-04-19T21:58:38Z"
+				"lastPublishTime": "2026-04-21T23:08:51Z"
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/ds_tabc')]",
@@ -1706,17 +1908,48 @@
 							"waitOnCompletion": true,
 							"parameters": {}
 						}
+					},
+					{
+						"name": "Execute Pipeline3",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Pipeline1",
+								"dependencyConditions": [
+									"Completed"
+								]
+							},
+							{
+								"activity": "Execute Pipeline2",
+								"dependencyConditions": [
+									"Completed"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "MergeData",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
 				"annotations": [],
-				"lastPublishTime": "2026-04-19T21:58:38Z"
+				"lastPublishTime": "2026-04-21T23:08:52Z"
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/p1_austin_salestax')]",
-				"[concat(variables('factoryId'), '/pipelines/p2_austin_tabc')]"
+				"[concat(variables('factoryId'), '/pipelines/p2_austin_tabc')]",
+				"[concat(variables('factoryId'), '/pipelines/MergeData')]"
 			]
 		},
 		{
