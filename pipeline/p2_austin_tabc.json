@@ -59,7 +59,7 @@
 				"type": "Copy",
 				"dependsOn": [
 					{
-						"activity": "Transformation_TABC",
+						"activity": "CopyTABCData",
 						"dependencyConditions": [
 							"Completed"
 						]
@@ -508,6 +508,39 @@
 				"type": "Script",
 				"dependsOn": [
 					{
+						"activity": "Normalize_TABC",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, license_status, fk_taxpayer_number, fk_tabc_license_id,\n    created_at, updated_at\n)\nSELECT\n    'TABC',\n    CONCAT(ISNULL(trade_name, license_id), '-', address, '-', city),\n    trade_name, owner, address, city, state, zip, county,\n    current_issued_date, license_status, NULL, license_id,\n    CONVERT(NVARCHAR, GETDATE(), 120), CONVERT(NVARCHAR, GETDATE(), 120)\nFROM dbo.tabc_permits\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits\n    WHERE business_key = CONCAT(ISNULL(trade_name, license_id), '-', address, '-', city)\n    AND source_type = 'TABC'\n);"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Transformation_TABC",
+				"type": "Script",
+				"dependsOn": [
+					{
 						"activity": "CopyParquetToSQL",
 						"dependencyConditions": [
 							"Completed"
@@ -530,18 +563,18 @@
 					"scripts": [
 						{
 							"type": "NonQuery",
-							"text": "INSERT INTO dbo.master_permits (\n    source_type, business_key,\n    business_name, legal_owner, address, city, state, zip, county_code,\n    permit_issue_date, license_status, fk_tabc_license_id\n)\nSELECT\n    'TABC', license_id,\n    trade_name, owner, address, city, state, zip, county,\n    current_issued_date, license_status, license_id\nFROM dbo.tabc_permits\nWHERE NOT EXISTS (\n    SELECT 1 FROM dbo.master_permits \n    WHERE source_type = 'TABC' AND business_key = license_id\n);"
+							"text": "-- STEP 1: Increase Column Sizes\nALTER TABLE dbo.tabc_permits ALTER COLUMN county NVARCHAR(255);\nALTER TABLE dbo.tabc_permits ALTER COLUMN license_type NVARCHAR(255);\n\n-- STEP 2: Standardize Text Columns\nUPDATE dbo.tabc_permits\nSET\n    trade_name   = UPPER(LTRIM(RTRIM(trade_name))),\n    owner        = UPPER(LTRIM(RTRIM(owner))),\n    address      = UPPER(LTRIM(RTRIM(address))),\n    city         = UPPER(LTRIM(RTRIM(city))),\n    state        = UPPER(LTRIM(RTRIM(state))),\n    mail_address = UPPER(LTRIM(RTRIM(mail_address))),\n    mail_city    = UPPER(LTRIM(RTRIM(mail_city))),\n    mail_state   = UPPER(LTRIM(RTRIM(mail_state)));\n\n-- STEP 3: Convert Date Columns\nUPDATE dbo.tabc_permits\nSET\n    current_issued_date = CONVERT(DATE, current_issued_date),\n    status_change_date  = CONVERT(DATE, status_change_date),\n    expiration_date     = CONVERT(DATE, expiration_date),\n    original_issue_date = CONVERT(DATE, original_issue_date);\n\n-- STEP 4: Decode County\nUPDATE dbo.tabc_permits\nSET county =\n    CASE LTRIM(RTRIM(county))\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n    END\nWHERE LTRIM(RTRIM(county)) IN ('011', '227', '075', '045');\n\n-- STEP 5: Decode License Type\nUPDATE dbo.tabc_permits\nSET license_type =\n    CASE LTRIM(RTRIM(license_type))\n        WHEN 'MB'  THEN 'Mixed Beverage Permit'\n        WHEN 'BG'  THEN 'Wine and Malt Beverage Retailers Permit'\n        WHEN 'BE'  THEN 'Beer Retailers On-Premise License'\n        WHEN 'BF'  THEN 'Beer Retailers Off-Premise License'\n        WHEN 'BQ'  THEN 'Wine and Malt Beverage Retailers Off-Premise Permit'\n        WHEN 'P'   THEN 'Package Store Permit'\n        WHEN 'Q'   THEN 'Wine-Only Package Store Permit'\n        WHEN 'N'   THEN 'Private Club Registration Permit'\n        WHEN 'NB'  THEN 'Private Club Malt Beverage and Wine Permit'\n        WHEN 'NE'  THEN 'Private Club Exemption Permit'\n        WHEN 'D'   THEN 'Distillers and Rectifiers Permit'\n        WHEN 'G'   THEN 'Winery Permit'\n        WHEN 'BB'  THEN 'General Distributors License'\n        WHEN 'BC'  THEN 'Branch Distributors License'\n        WHEN 'BW'  THEN 'Brewers License'\n        WHEN 'BP'  THEN 'Brewpub License'\n        WHEN 'W'   THEN 'Wholesalers Permit'\n        WHEN 'X'   THEN 'General Class B Wholesalers Permit'\n        WHEN 'S'   THEN 'Nonresident Sellers Permit'\n        WHEN 'DS'  THEN 'Out-of-State Winery Direct Shippers Permit'\n        WHEN 'BN'  THEN 'Nonresident Brewers License'\n        WHEN 'CD'  THEN 'Consumer Delivery Permit'\n        WHEN 'TR'  THEN 'Passenger Transportation Permit'\n        WHEN 'FB'  THEN 'Food and Beverage Certificate'\n        WHEN 'LB'  THEN 'Late Hours Certificate'\n        ELSE 'Unknown License Type'\n    END;\n\n-- STEP 6: Standardize Zip Codes\nUPDATE dbo.tabc_permits\nSET zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(zip)))) + LTRIM(RTRIM(zip)), 5)\nWHERE zip IS NOT NULL;\n\nUPDATE dbo.tabc_permits\nSET mail_zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(mail_zip)))) + LTRIM(RTRIM(mail_zip)), 5)\nWHERE mail_zip IS NOT NULL;"
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
 				}
 			},
 			{
-				"name": "Transformation_TABC",
+				"name": "Normalize_TABC",
 				"type": "Script",
 				"dependsOn": [
 					{
-						"activity": "CopyTABCData",
+						"activity": "Transformation_TABC",
 						"dependencyConditions": [
 							"Completed"
 						]
@@ -563,15 +596,48 @@
 					"scripts": [
 						{
 							"type": "NonQuery",
-							"text": "-- ─────────────────────────────────────────\n-- STEP 1: Increase Column Sizes\n-- ─────────────────────────────────────────\nALTER TABLE dbo.tabc_permits\nALTER COLUMN county NVARCHAR(255);\n\nALTER TABLE dbo.tabc_permits\nALTER COLUMN license_type NVARCHAR(255);\n\n-- ─────────────────────────────────────────\n-- STEP 2: Standardize Text Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET\n    trade_name    = UPPER(LTRIM(RTRIM(trade_name))),\n    owner         = UPPER(LTRIM(RTRIM(owner))),\n    address       = UPPER(LTRIM(RTRIM(address))),\n    city          = UPPER(LTRIM(RTRIM(city))),\n    state         = UPPER(LTRIM(RTRIM(state))),\n    mail_address  = UPPER(LTRIM(RTRIM(mail_address))),\n    mail_city     = UPPER(LTRIM(RTRIM(mail_city))),\n    mail_state    = UPPER(LTRIM(RTRIM(mail_state)));\n\n-- ─────────────────────────────────────────\n-- STEP 3: Convert Date Columns\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET\n    current_issued_date  = CONVERT(DATE, current_issued_date),\n    status_change_date   = CONVERT(DATE, status_change_date),\n    expiration_date      = CONVERT(DATE, expiration_date),\n    original_issue_date  = CONVERT(DATE, original_issue_date);\n\n-- ─────────────────────────────────────────\n-- STEP 4: Decode County\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET county =\n    CASE LTRIM(RTRIM(county))\n        WHEN '011' THEN 'Bastrop'\n        WHEN '227' THEN 'Travis'\n        WHEN '075' THEN 'Fayette'\n        WHEN '045' THEN 'Colorado'\n    END\nWHERE LTRIM(RTRIM(county)) IN ('011', '227', '075', '045');\n\n-- ─────────────────────────────────────────\n-- STEP 5: Decode License Type\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET license_type =\n    CASE LTRIM(RTRIM(license_type))\n        WHEN 'MB'  THEN 'Mixed Beverage Permit'\n        WHEN 'BG'  THEN 'Wine and Malt Beverage Retailers Permit'\n        WHEN 'BE'  THEN 'Beer Retailers On-Premise License'\n        WHEN 'BF'  THEN 'Beer Retailers Off-Premise License'\n        WHEN 'BQ'  THEN 'Wine and Malt Beverage Retailers Off-Premise Permit'\n        WHEN 'P'   THEN 'Package Store Permit'\n        WHEN 'Q'   THEN 'Wine-Only Package Store Permit'\n        WHEN 'N'   THEN 'Private Club Registration Permit'\n        WHEN 'NB'  THEN 'Private Club Malt Beverage and Wine Permit'\n        WHEN 'NE'  THEN 'Private Club Exemption Permit'\n        WHEN 'D'   THEN 'Distillers and Rectifiers Permit'\n        WHEN 'G'   THEN 'Winery Permit'\n        WHEN 'BB'  THEN 'General Distributors License'\n        WHEN 'BC'  THEN 'Branch Distributors License'\n        WHEN 'BW'  THEN 'Brewers License'\n        WHEN 'BP'  THEN 'Brewpub License'\n        WHEN 'W'   THEN 'Wholesalers Permit'\n        WHEN 'X'   THEN 'General Class B Wholesalers Permit'\n        WHEN 'S'   THEN 'Nonresident Sellers Permit'\n        WHEN 'DS'  THEN 'Out-of-State Winery Direct Shippers Permit'\n        WHEN 'BN'  THEN 'Nonresident Brewers License'\n        WHEN 'CD'  THEN 'Consumer Delivery Permit'\n        WHEN 'TR'  THEN 'Passenger Transportation Permit'\n        WHEN 'FB'  THEN 'Food and Beverage Certificate'\n        WHEN 'LB'  THEN 'Late Hours Certificate'\n        ELSE 'Unknown License Type'\n    END;\n\n-- ─────────────────────────────────────────\n-- STEP 6: Standardize Zip Codes\n-- ─────────────────────────────────────────\nUPDATE dbo.tabc_permits\nSET zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(zip)))) \n          + LTRIM(RTRIM(zip)), 5)\nWHERE zip IS NOT NULL;\n\nUPDATE dbo.tabc_permits\nSET mail_zip = LEFT(REPLICATE('0', 5 - LEN(LTRIM(RTRIM(mail_zip)))) \n               + LTRIM(RTRIM(mail_zip)), 5)\nWHERE mail_zip IS NOT NULL;\n\n-- ─────────────────────────────────────────\n-- STEP 7: Remove Duplicates\n-- ─────────────────────────────────────────\nWITH CTE AS (\n    SELECT *,\n        ROW_NUMBER() OVER (\n            PARTITION BY license_id\n            ORDER BY current_issued_date DESC\n        ) AS row_num\n    FROM dbo.tabc_permits\n)\nDELETE FROM CTE WHERE row_num > 1;"
+							"text": "-- Address normalization\nUPDATE dbo.tabc_permits\nSET address = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(\n    address, '.',''),',',''),'#',''),'\"',''),'''','');\n\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' NORTH ', ' N ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' SOUTH ', ' S ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' EAST ',  ' E ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' WEST ',  ' W ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' NORTHEAST ', ' NE ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' NORTHWEST ', ' NW ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' SOUTHEAST ', ' SE ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' SOUTHWEST ', ' SW ');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' STREET',    ' ST');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' AVENUE',    ' AVE');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' BOULEVARD', ' BLVD');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' DRIVE',     ' DR');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' ROAD',      ' RD');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' LANE',      ' LN');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' COURT',     ' CT');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' CIRCLE',    ' CIR');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' HIGHWAY',   ' HWY');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' FREEWAY',   ' FWY');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' PARKWAY',   ' PKWY');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' TRAIL',     ' TRL');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' PLACE',     ' PL');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' SUITE',     ' STE');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' APARTMENT', ' APT');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' BUILDING',  ' BLDG');\nUPDATE dbo.tabc_permits SET address = REPLACE(address, ' FLOOR',     ' FL');\n\nUPDATE dbo.tabc_permits\nSET address = LTRIM(RTRIM(\n    REPLACE(REPLACE(REPLACE(address, '   ',' '),'  ',' '),'  ',' ')\n));\n\n-- Trade name normalization\nUPDATE dbo.tabc_permits\nSET trade_name = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(\n    trade_name, '.',''),',',''),'#',''),'\"',''),'''',''),'-',' ');\n\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' & ', ' AND ');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' LLC',  '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' INC',  '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' CORP', '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' LTD',  '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' CO',   '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' DBA',  '');\nUPDATE dbo.tabc_permits SET trade_name = REPLACE(trade_name, ' LP',   '');\n\nUPDATE dbo.tabc_permits\nSET trade_name = LTRIM(STUFF(trade_name, 1, 4, ''))\nWHERE trade_name LIKE 'THE %';\n\nUPDATE dbo.tabc_permits\nSET trade_name = LTRIM(RTRIM(\n    REPLACE(REPLACE(REPLACE(trade_name, '   ',' '),'  ',' '),'  ',' ')\n));\n\n-- Dedup: keep latest active license per location\nWITH CTE AS (\n    SELECT *, ROW_NUMBER() OVER (\n        PARTITION BY CONCAT(\n            UPPER(ISNULL(trade_name, license_id)), '-',\n            UPPER(address), '-',\n            UPPER(city)\n        )\n        ORDER BY\n            CASE WHEN primary_status = 'Active' THEN 0 ELSE 1 END,\n            TRY_CAST(current_issued_date AS DATE) DESC\n    ) AS row_num\n    FROM dbo.tabc_permits\n)\nDELETE FROM CTE WHERE row_num > 1;"
 						}
 					],
 					"scriptBlockExecutionTimeout": "02:00:00"
 				}
+			},
+			{
+				"name": "DeleteParquetFiles",
+				"type": "Delete",
+				"dependsOn": [
+					{
+						"activity": "Script_TABC",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "Parquet_tabc",
+						"type": "DatasetReference"
+					},
+					"enableLogging": false,
+					"storeSettings": {
+						"type": "AzureBlobStorageReadSettings",
+						"recursive": true,
+						"wildcardFileName": "*.parquet",
+						"enablePartitionDiscovery": false
+					}
+				}
 			}
 		],
 		"annotations": [],
-		"lastPublishTime": "2026-04-19T21:58:38Z"
+		"lastPublishTime": "2026-04-21T23:08:51Z"
 	},
 	"type": "Microsoft.DataFactory/factories/pipelines"
 }

@@ -1,4 +1,10 @@
 {
 	"name": "adf-austin-pipeline-dev",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
 	"location": "westus3"
 }

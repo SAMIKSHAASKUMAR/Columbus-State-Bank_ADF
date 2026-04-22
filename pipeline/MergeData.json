@@ -1,0 +1,36 @@
+{
+	"name": "MergeData",
+	"properties": {
+		"activities": [
+			{
+				"name": "MergeDataInMaster",
+				"type": "Script",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "NonQuery",
+							"text": "-- Update Sales Tax record with TABC fk where business_key matches\nUPDATE mp\nSET\n    mp.fk_tabc_license_id = t.license_id,\n    mp.license_status     = t.license_status,\n    mp.source_type        = 'BOTH',\n    mp.updated_at         = CONVERT(NVARCHAR, GETDATE(), 120)\nFROM dbo.master_permits mp\nINNER JOIN dbo.tabc_permits t\n    ON mp.business_key = CONCAT(t.trade_name, '-', t.address, '-', t.city)\nWHERE mp.source_type = 'SALESTAX';\n\n-- Delete the now-duplicate TABC only record\nDELETE FROM dbo.master_permits\nWHERE source_type = 'TABC'\nAND business_key IN (\n    SELECT business_key FROM dbo.master_permits\n    WHERE source_type = 'BOTH'\n);"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2026-04-21T23:08:51Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
